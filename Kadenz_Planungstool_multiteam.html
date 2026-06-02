@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kadenz-Planungstool v6</title>
+<title>Kadenz-Planungstool (Multi-Team)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   :root {
@@ -481,7 +481,7 @@
 <body>
 
 <header>
-  <h1>Kadenz-Planungstool</h1>
+  <h1>Kadenz-Planungstool · Multi-Team</h1>
   <div class="hsep"></div>
   <div class="vtabs">
     <button class="vtab active" onclick="setView('month')">Monat</button>
@@ -966,6 +966,14 @@ function endTime(ts,dur){const[h,m]=ts.split(':').map(Number);const t=h*60+m+dur
 function timeToSlot(ts){const[h,m]=ts.split(':').map(Number);return(h-8)*4+Math.floor(m/15);}
 function isoWeek(date){const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7));return Math.ceil((((d-new Date(Date.UTC(d.getUTCFullYear(),0,1)))/86400000)+1)/7);}
 function sprintWeekOf(date){const diff=Math.floor((date-startDate)/(7*86400000));if(diff<0)return -1;return(diff%sprintLen)+1;}
+
+function sprintWeekOfForTeam(date, team) {
+  const tLen = team ? team.sprintLen : sprintLen;
+  if (!tLen) return -1; // Kanban / kein Sprint
+  const diff = Math.floor((date - startDate) / (7 * 86400000));
+  if (diff < 0) return -1;
+  return (diff % tLen) + 1;
+}
 function sprintNumOf(date){const diff=Math.floor((date-startDate)/(sprintLen*7*86400000));return diff>=0?diff+1:null;}
 function fmtDate(ds){const d=new Date(ds);return d.toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'});}
 function uid(){return Math.random().toString(36).slice(2,8);}
@@ -1034,9 +1042,12 @@ function meetingActive(m){if(activeMeetingIds===null)return true;return activeMe
 // ══════════════════════════════════════════════════════════════════════════
 // SCHEDULE
 // ══════════════════════════════════════════════════════════════════════════
-function getMeetingsForDate(date){
+function getMeetingsForDate(date, teamId = null){
   const dow=date.getDay(),weekDay=dow===0?7:dow;
-  const sw=sprintWeekOf(date),weeksSince=Math.floor((date-startDate)/(7*86400000));
+  const team = teamId ? TEAMS.find(t => t.id === teamId) : null;
+  const teamSprintLen = team ? (team.sprintLen || sprintLen) : sprintLen;
+  const sw = team ? sprintWeekOfForTeam(date, team) : sprintWeekOf(date);
+  const weeksSince=Math.floor((date-startDate)/(7*86400000));
   const result=[];
   for(const m of MEETINGS){
     if(!meetingVisible(m)||!meetingActive(m))continue;
@@ -1056,7 +1067,7 @@ function getMeetingsForDate(date){
       case 'daily':show=true;break;
       case 'weekly':show=weekDay===(m.weekDay||3);break;
       case 'sprint-start':show=(sw===1&&weekDay===(m.weekDay||1));break;
-      case 'sprint-end':show=(sw===sprintLen&&weekDay===(m.weekDay||5));break;
+      case 'sprint-end':show=(sw===teamSprintLen&&weekDay===(m.weekDay||5));break;
       case 'every6weeks':{
         // If meeting has its own startDate, anchor the 6-week cycle to it on its weekday
         if(m.startDate && m.weekDay){
@@ -1099,6 +1110,11 @@ function getMeetingsForDate(date){
       }
     }
     if(show)result.push(m);
+  }
+  // Team-Filter anwenden
+  if (teamId) {
+    return result.filter(m => !m.teamIds || m.teamIds.includes(teamId))
+                 .sort((a,b) => a.time.localeCompare(b.time));
   }
   return result.sort((a,b)=>a.time.localeCompare(b.time));
 }
@@ -1339,6 +1355,8 @@ function getProfileData() {
     betriebsurlaub,
     // Active template
     activeMeetingIds,
+    // Teams
+    teams: TEAMS,
   };
 }
 
@@ -1402,6 +1420,7 @@ function loadProfileData(data) {
   if (data.milestones) milestones = data.milestones;
   if (data.betriebsurlaub) betriebsurlaub = data.betriebsurlaub;
   if (data.activeMeetingIds !== undefined) activeMeetingIds = data.activeMeetingIds;
+  if (data.teams) { TEAMS.length = 0; data.teams.forEach(t => TEAMS.push(t)); }
 }
 
 function renderProfileBar() {
@@ -1477,6 +1496,7 @@ function addNewMeeting() {
     sourceName: '',
     important: document.getElementById('nmf-important').checked,
     alle: false,
+    teamIds: null,
   };
 
   MEETINGS.push(newMeeting);
@@ -1967,6 +1987,15 @@ const LANES = [
   {id:'milestone',label:'Meilensteine', sub:'Fixpunkte · Betriebsurlaub', color:'var(--ms-milestone)'},
 ];
 
+// ══════════════════════════════════════════════════════════════════════════
+// TEAMS (Multi-Team-Modus)
+// ══════════════════════════════════════════════════════════════════════════
+let TEAMS = [
+  { id: 'team-1', name: 'Team Alpha', fl: 'fl1', sprintLen: 2, color: '#2563EB' },
+  { id: 'team-2', name: 'Team Beta',  fl: 'fl1', sprintLen: 2, color: '#7C3AED' },
+  { id: 'coord-1', name: 'Koordination A', fl: 'fl2', sprintLen: 4, color: '#059669' },
+];
+
 function renderYear() {
   const yr = currentDate.getFullYear();
   document.getElementById('periodTitle').textContent = `Jahresansicht ${yr}`;
@@ -2099,47 +2128,50 @@ function renderYear() {
   const todayKW = isoWeek(today);
   const todayYr = today.getFullYear();
 
+  // Helper to build a standard week cell with holidays/ferien classes
+  function buildWeekCell(w) {
+    const cell = document.createElement('div');
+    const _isThisWeek = isoWeek(w.start) === todayKW && w.start.getFullYear() === todayYr;
+    const hols = getHolidaysForDate(w.start, activeBL)
+      .concat(getHolidaysForDate(new Date(w.start.getTime() + 86400000), activeBL))
+      .concat(getHolidaysForDate(new Date(w.start.getTime() + 172800000), activeBL))
+      .concat(getHolidaysForDate(new Date(w.start.getTime() + 259200000), activeBL))
+      .concat(getHolidaysForDate(new Date(w.start.getTime() + 345600000), activeBL));
+    const hasHardHol = hols.some(h => h.bl.length === BL_ALL.length);
+    const ferienMon = getFerienForDate(w.start, activeBL);
+    const hasFerienBg = ferienMon.length > 0;
+    cell.className = 'yr-cell'
+      + (_isThisWeek ? ' today-week' : '')
+      + (hasFerienBg ? ' ferien-week' : '')
+      + (hasHardHol ? ' has-holiday' : '');
+    if (w.start.getMonth() % 2 === 0) cell.style.background = _isThisWeek ? '#EFF6FF' : hasFerienBg ? 'rgba(254,243,199,0.35)' : '#F8FAFC';
+    if (hols.length) {
+      const dot = document.createElement('div');
+      dot.className = 'yr-hol-dot' + (hasHardHol ? '' : ' regional');
+      dot.title = [...new Set(hols.map(h=>h.n))].join(', ');
+      cell.appendChild(dot);
+    }
+    cell._isThisWeek = _isThisWeek;
+    cell._hols = hols;
+    cell._hasHardHol = hasHardHol;
+    cell._hasFerienBg = hasFerienBg;
+    return cell;
+  }
+
+  const shortName = name => name.replace('Sprint ', 'Spr.').replace('Retrospektive','Retro').replace('Refinement','Refin.').replace('Planning','Plan.').replace('Lenkungsausschuss','LAS').replace('Koordinations-','Koo-').replace('Gesamt-Review / Demo','Ges.-Rev.').replace('Community of Practice','CoP').replace('Quartals-Planning','QP').replace('Replenishment','Repl.').replace('Sprechstunde Infra','Sprchst.').replace('Overall Daily','Ov.Daily').replace('Cross-','X-');
+
   LANES.forEach(lane => {
-    // Lane label cell
-    const label = document.createElement('div');
-    label.className = 'yr-lane-label';
-    label.innerHTML = `<div class="yr-lane-dot" style="background:${lane.color}"></div><div><div class="yr-lane-name">${lane.label}</div><div class="yr-lane-sub">${lane.sub}</div></div>`;
-    body.appendChild(label);
+    const teamsInFL = TEAMS.filter(t => t.fl === lane.id);
 
-    // One cell per week
-    weeks.forEach((w, wi) => {
-      const cell = document.createElement('div');
-      const isThisWeek = isoWeek(w.start) === todayKW && w.start.getFullYear() === todayYr;
-      const hols = getHolidaysForDate(w.start, activeBL)
-        .concat(getHolidaysForDate(new Date(w.start.getTime() + 86400000), activeBL))
-        .concat(getHolidaysForDate(new Date(w.start.getTime() + 172800000), activeBL))
-        .concat(getHolidaysForDate(new Date(w.start.getTime() + 259200000), activeBL))
-        .concat(getHolidaysForDate(new Date(w.start.getTime() + 345600000), activeBL));
-      const hasHardHol = hols.some(h => h.bl.length === BL_ALL.length);
-      const hasRegHol = hols.length > 0 && !hasHardHol;
+    if (lane.id === 'milestone') {
+      // Meilenstein-Spur wie bisher
+      const label = document.createElement('div');
+      label.className = 'yr-lane-label';
+      label.innerHTML = `<div class="yr-lane-dot" style="background:${lane.color}"></div><div><div class="yr-lane-name">${lane.label}</div><div class="yr-lane-sub">${lane.sub}</div></div>`;
+      body.appendChild(label);
 
-      // Ferien check for Mon
-      const ferienMon = getFerienForDate(w.start, activeBL);
-      const hasFerienBg = ferienMon.length > 0;
-
-      cell.className = 'yr-cell'
-        + (isThisWeek ? ' today-week' : '')
-        + (hasFerienBg ? ' ferien-week' : '')
-        + (hasHardHol ? ' has-holiday' : '');
-
-      // Alternate month shading
-      if (w.start.getMonth() % 2 === 0) cell.style.background = isThisWeek ? '#EFF6FF' : hasFerienBg ? 'rgba(254,243,199,0.35)' : '#F8FAFC';
-
-      // Holiday dot
-      if (hols.length) {
-        const dot = document.createElement('div');
-        dot.className = 'yr-hol-dot' + (hasHardHol ? '' : ' regional');
-        dot.title = [...new Set(hols.map(h=>h.n))].join(', ');
-        cell.appendChild(dot);
-      }
-
-      if (lane.id === 'milestone') {
-        // Milestones + Betriebsurlaub for this week
+      weeks.forEach((w) => {
+        const cell = buildWeekCell(w);
         for (let di = 0; di < 5; di++) {
           const day = new Date(w.start); day.setDate(day.getDate() + di);
           const ms = getMilestonesForDate(day);
@@ -2159,8 +2191,85 @@ function renderYear() {
             cell.appendChild(pill);
           }
         }
-      } else {
-        // Collect unique meetings in this lane for this week
+        cell.addEventListener('click', (e) => {
+          if (e.target === cell) { currentDate = new Date(w.start); setView('month'); }
+        });
+        body.appendChild(cell);
+      });
+
+    } else if (teamsInFL.length > 0) {
+      // FL hat Teams → FL-Header-Zeile + eine Sub-Spur pro Team
+
+      // Resolve lane color for display (CSS var → hex fallback)
+      const laneColorMap = {'var(--fl1)':'#DBEAFE','var(--fl2)':'#D1FAE5','var(--fl3)':'#EDE9FE','var(--lernen)':'#FCE7F3'};
+      const laneBgColor = laneColorMap[lane.color] || '#F8FAFC';
+      const laneBorderColor = {'var(--fl1)':'#3B82F6','var(--fl2)':'#10B981','var(--fl3)':'#8B5CF6','var(--lernen)':'#EC4899'}[lane.color] || '#94A3B8';
+
+      // FL-Header-Zeile
+      const flLabel = document.createElement('div');
+      flLabel.className = 'yr-lane-label';
+      flLabel.style.cssText = `background:${laneBgColor};border-bottom:2px solid ${laneBorderColor};padding:4px 10px;`;
+      flLabel.innerHTML = `<div class="yr-lane-dot" style="background:${laneBorderColor}"></div><div><div class="yr-lane-name" style="font-size:12px">${lane.label}</div><div class="yr-lane-sub">${teamsInFL.length} Teams</div></div>`;
+      body.appendChild(flLabel);
+
+      weeks.forEach(() => {
+        const cell = document.createElement('div');
+        cell.style.cssText = `border-right:1px solid var(--border);border-bottom:2px solid ${laneBorderColor};background:${laneBgColor};min-height:18px;`;
+        body.appendChild(cell);
+      });
+
+      // Sub-Spur pro Team
+      teamsInFL.forEach(team => {
+        const teamLabel = document.createElement('div');
+        teamLabel.className = 'yr-lane-label';
+        teamLabel.style.paddingLeft = '20px';
+        teamLabel.innerHTML = `<div class="yr-lane-dot" style="background:${team.color};width:7px;height:7px"></div><div><div class="yr-lane-name" style="font-size:10px">${team.name}</div><div class="yr-lane-sub">${team.sprintLen ? team.sprintLen+'W-Sprint' : 'Kanban'}</div></div>`;
+        body.appendChild(teamLabel);
+
+        weeks.forEach((w) => {
+          const cell = buildWeekCell(w);
+          const seen = new Set();
+          for (let di = 0; di < 5; di++) {
+            const day = new Date(w.start); day.setDate(day.getDate() + di);
+            const dayMeetings = getMeetingsForDate(day, team.id).filter(m => m.fl === lane.id);
+            dayMeetings.forEach(m => {
+              if (!seen.has(m.id)) {
+                seen.add(m.id);
+                const pill = document.createElement('span');
+                pill.className = `yr-pill ${m.fl}`;
+                pill.style.borderLeftColor = team.color;
+                pill.textContent = shortName(m.name);
+                pill.title = `${m.name} · ${m.time} · ${fmtDur(getEffectiveDuration(m))} [${team.name}]`;
+                pill.addEventListener('click', () => openSidebar(m, day, getConflict(m, day)));
+                cell.appendChild(pill);
+              }
+            });
+          }
+          // Sprint week indicator per team
+          const tsw = sprintWeekOfForTeam(w.start, team);
+          const tsn = sprintNumOf(w.start);
+          if (tsw > 0 && tsn > 0 && team.sprintLen) {
+            const swLabel = document.createElement('div');
+            swLabel.style.cssText = `font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--text-light);position:absolute;bottom:1px;right:2px;`;
+            swLabel.textContent = `S${tsn}W${tsw}`;
+            cell.appendChild(swLabel);
+          }
+          cell.addEventListener('click', (e) => {
+            if (e.target === cell) { currentDate = new Date(w.start); setView('month'); }
+          });
+          body.appendChild(cell);
+        });
+      });
+
+    } else {
+      // Keine Teams für diese FL → normale Lane wie bisher
+      const label = document.createElement('div');
+      label.className = 'yr-lane-label';
+      label.innerHTML = `<div class="yr-lane-dot" style="background:${lane.color}"></div><div><div class="yr-lane-name">${lane.label}</div><div class="yr-lane-sub">${lane.sub}</div></div>`;
+      body.appendChild(label);
+
+      weeks.forEach((w) => {
+        const cell = buildWeekCell(w);
         const seen = new Set();
         for (let di = 0; di < 5; di++) {
           const day = new Date(w.start); day.setDate(day.getDate() + di);
@@ -2170,14 +2279,9 @@ function renderYear() {
               seen.add(m.id);
               const pill = document.createElement('span');
               pill.className = `yr-pill ${m.fl}`;
-              // Show short name
-              const shortName = m.name.replace('Sprint ', 'Spr.').replace('Retrospektive','Retro').replace('Refinement','Refin.').replace('Planning','Plan.').replace('Lenkungsausschuss','LAS').replace('Koordinations-','Koo-').replace('Gesamt-Review / Demo','Ges.-Rev.').replace('Community of Practice','CoP').replace('Quartals-Planning','QP').replace('Replenishment','Repl.').replace('Sprechstunde Infra','Sprchst.').replace('Overall Daily','Ov.Daily').replace('Cross-','X-');
-              pill.textContent = shortName;
+              pill.textContent = shortName(m.name);
               pill.title = `${m.name} · ${m.time} · ${fmtDur(getEffectiveDuration(m))}`;
-              pill.addEventListener('click', () => {
-                const conflict = getConflict(m, day);
-                openSidebar(m, day, conflict);
-              });
+              pill.addEventListener('click', () => { openSidebar(m, day, getConflict(m, day)); });
               cell.appendChild(pill);
             }
           });
@@ -2191,18 +2295,12 @@ function renderYear() {
           swLabel.textContent = `S${sn}W${sw}`;
           cell.appendChild(swLabel);
         }
-      }
-
-      cell.addEventListener('click', (e) => {
-        if (e.target === cell) {
-          // Click on empty cell → navigate to month view for that week
-          currentDate = new Date(w.start);
-          setView('month');
-        }
+        cell.addEventListener('click', (e) => {
+          if (e.target === cell) { currentDate = new Date(w.start); setView('month'); }
+        });
+        body.appendChild(cell);
       });
-
-      body.appendChild(cell);
-    });
+    }
   });
 }
 
@@ -2378,6 +2476,77 @@ function renderKontext(){
     </div>`;
   scroll.appendChild(buSec);
   renderBuList(buSec.querySelector('#buList'));
+
+  // ── Teams ────────────────────────────────────────────────────────────────
+  const teamSec=document.createElement('div');teamSec.className='kx-section';
+  teamSec.innerHTML=`
+    <div class="kx-section-head">
+      <div>
+        <div class="kx-section-title">👥 Teams (Multi-Team-Modus)</div>
+        <div class="kx-section-sub">Teams werden als separate Spuren in der Jahresansicht dargestellt. Meetings können Teams zugewiesen werden.</div>
+      </div>
+    </div>
+    <div class="kx-body">
+      <div class="ms-list" id="teamList"></div>
+      <div style="display:grid;grid-template-columns:1fr 130px 130px 40px auto;gap:7px;align-items:end;margin-top:10px">
+        <div class="ms-form-group"><label class="ms-form-label">Teamname</label><input class="finput" id="new-team-name" placeholder="z.B. Team Alpha"></div>
+        <div class="ms-form-group"><label class="ms-form-label">Flight Level</label>
+          <select class="fselect" id="new-team-fl">
+            <option value="fl1">FL1 — Team</option>
+            <option value="fl2">FL2 — Koordination</option>
+            <option value="fl3">FL3 — Management</option>
+            <option value="lernen">Lernen</option>
+          </select>
+        </div>
+        <div class="ms-form-group"><label class="ms-form-label">Sprintlänge</label>
+          <select class="fselect" id="new-team-sprint">
+            <option value="">Kanban</option>
+            <option value="1">1 Woche</option>
+            <option value="2" selected>2 Wochen</option>
+            <option value="3">3 Wochen</option>
+            <option value="4">4 Wochen</option>
+          </select>
+        </div>
+        <div class="ms-form-group"><label class="ms-form-label">Farbe</label><input type="color" id="new-team-color" value="#2563EB" style="width:36px;height:32px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px"></div>
+        <button class="add-btn" onclick="addTeam()">+ Team</button>
+      </div>
+    </div>`;
+  scroll.appendChild(teamSec);
+
+  const teamList = teamSec.querySelector('#teamList');
+  if (!TEAMS.length) {
+    teamList.innerHTML = '<div style="font-size:11px;color:var(--text-light);font-style:italic">Noch keine Teams eingetragen.</div>';
+  } else {
+    TEAMS.forEach(team => {
+      const item = document.createElement('div');
+      item.className = 'ms-item';
+      item.style.borderLeft = `3px solid ${team.color}`;
+      item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${team.color};display:inline-block;margin-right:4px"></span><span class="ms-item-name">${team.name}</span><span class="ms-item-type" style="background:#F1F5F9;color:#475569">${FL_NAMES[team.fl]||team.fl}</span><span class="ms-item-type" style="background:#F1F5F9;color:#475569">${team.sprintLen ? team.sprintLen+'W' : 'Kanban'}</span><button class="ms-del" onclick="deleteTeam('${team.id}')">×</button>`;
+      teamList.appendChild(item);
+    });
+  }
+}
+
+function addTeam() {
+  const name = document.getElementById('new-team-name').value.trim();
+  if (!name) return;
+  const fl = document.getElementById('new-team-fl').value;
+  const sprintLenVal = document.getElementById('new-team-sprint').value;
+  const color = document.getElementById('new-team-color').value;
+  TEAMS.push({
+    id: 'team-' + Date.now().toString(36),
+    name, fl,
+    sprintLen: sprintLenVal ? parseInt(sprintLenVal) : null,
+    color
+  });
+  renderKontext();
+  if (view === 'year') render();
+}
+
+function deleteTeam(id) {
+  TEAMS = TEAMS.filter(t => t.id !== id);
+  renderKontext();
+  if (view === 'year') render();
 }
 
 function renderMilestoneList(container){
@@ -2653,6 +2822,50 @@ function buildSidebarDynamic(m) {
     lbl.appendChild(sp);
     picker.appendChild(lbl);
   }
+
+  // Team-Zuweisung (Multi-Team)
+  if (TEAMS.length > 0) {
+    const sbb = document.querySelector('#sbContent .sbb');
+    if (sbb) {
+      const teamsInFL = TEAMS.filter(t => t.fl === m.fl);
+      if (teamsInFL.length > 0) {
+        const teamSec = document.createElement('div');
+        teamSec.className = 'fsec';
+        teamSec.innerHTML = `<div class="flbl">Teams</div>
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <input type="checkbox" ${!m.teamIds?'checked':''} onchange="setMeetingTeams('${m.id}', null)"> Alle Teams (FL-weit)
+          </label>
+          ${teamsInFL.map(t=>`
+            <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
+              <input type="checkbox" ${m.teamIds&&m.teamIds.includes(t.id)?'checked':''}
+                     onchange="toggleMeetingTeam('${m.id}','${t.id}',this.checked)">
+              <span style="width:8px;height:8px;border-radius:50%;background:${t.color};display:inline-block"></span>
+              ${t.name}
+            </label>`).join('')}`;
+        // Insert after conflict banner (first child of sbb)
+        const firstChild = sbb.firstElementChild;
+        if (firstChild && firstChild.nextSibling) {
+          sbb.insertBefore(teamSec, firstChild.nextSibling);
+        } else {
+          sbb.appendChild(teamSec);
+        }
+      }
+    }
+  }
+}
+
+function setMeetingTeams(id, teamIds) {
+  const m = MEETINGS.find(x => x.id === id);
+  if (m) { m.teamIds = teamIds; render(); }
+}
+
+function toggleMeetingTeam(id, teamId, checked) {
+  const m = MEETINGS.find(x => x.id === id);
+  if (!m) return;
+  if (!m.teamIds) m.teamIds = TEAMS.filter(t => t.fl === m.fl).map(t => t.id);
+  if (checked) { if (!m.teamIds.includes(teamId)) m.teamIds.push(teamId); }
+  else { m.teamIds = m.teamIds.filter(x => x !== teamId); if (!m.teamIds.length) m.teamIds = null; }
+  render();
 }
 
 function closeSidebar(){document.getElementById('sbEmpty').style.display='flex';document.getElementById('sbContent').style.display='none';}
@@ -2675,6 +2888,7 @@ function quickAddMeeting(date) {
     organisator: '', moderator: '', entscheider: '',
     source: '', sourceName: '',
     important: false, alle: false, notiz: '',
+    teamIds: null,
     _draftDate: date,
   };
   openDraftSidebar(draftMeeting, date);
