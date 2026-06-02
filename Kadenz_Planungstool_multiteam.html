@@ -1980,6 +1980,7 @@ function exportMeetingsExcel() {
 
 // Lanes: one per FL + milestones lane
 const LANES = [
+  {id:'alle',  label:'Alle Ebenen',        sub:'All-Hands · Town Hall · Org-weite Events', color:'var(--alle)'},
   {id:'fl1',  label:'FL1 — Team',        sub:'Daily · Planning · Review · Retro', color:'var(--fl1)'},
   {id:'fl2',  label:'FL2 — Koordination',sub:'Overall Daily · Gesamt-Review · Retro', color:'var(--fl2)'},
   {id:'fl3',  label:'FL3 — Management',  sub:'LAS · Quartals-Planning', color:'var(--fl3)'},
@@ -2161,7 +2162,9 @@ function renderYear() {
   const shortName = name => name.replace('Sprint ', 'Spr.').replace('Retrospektive','Retro').replace('Refinement','Refin.').replace('Planning','Plan.').replace('Lenkungsausschuss','LAS').replace('Koordinations-','Koo-').replace('Gesamt-Review / Demo','Ges.-Rev.').replace('Community of Practice','CoP').replace('Quartals-Planning','QP').replace('Replenishment','Repl.').replace('Sprechstunde Infra','Sprchst.').replace('Overall Daily','Ov.Daily').replace('Cross-','X-');
 
   LANES.forEach(lane => {
-    const teamsInFL = TEAMS.filter(t => t.fl === lane.id);
+    const teamsInFL = (lane.id === 'alle' || lane.id === 'milestone')
+      ? []
+      : TEAMS.filter(t => t.fl === lane.id);
 
     if (lane.id === 'milestone') {
       // Meilenstein-Spur wie bisher
@@ -2266,10 +2269,17 @@ function renderYear() {
       const label = document.createElement('div');
       label.className = 'yr-lane-label';
       label.innerHTML = `<div class="yr-lane-dot" style="background:${lane.color}"></div><div><div class="yr-lane-name">${lane.label}</div><div class="yr-lane-sub">${lane.sub}</div></div>`;
+      if (lane.id === 'alle') {
+        label.style.background = 'var(--alle-light)';
+        label.style.borderBottom = '2px solid var(--alle)';
+      }
       body.appendChild(label);
 
       weeks.forEach((w) => {
         const cell = buildWeekCell(w);
+        if (lane.id === 'alle') {
+          cell.style.background = 'rgba(30,58,95,0.03)';
+        }
         const seen = new Set();
         for (let di = 0; di < 5; di++) {
           const day = new Date(w.start); day.setDate(day.getDate() + di);
@@ -2782,7 +2792,7 @@ function buildSidebarDynamic(m) {
   const picker = document.getElementById('sb-fl-picker-' + m.id);
   if (picker) {
     picker.innerHTML = '';
-    const fls = [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'}];
+    const fls = [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'},{id:'alle',label:'Alle'}];
     fls.forEach(fl => {
       const btn = document.createElement('button');
       btn.className = 'dpill' + (m.fl === fl.id ? ' sel' : '');
@@ -2794,7 +2804,7 @@ function buildSidebarDynamic(m) {
         btn.style.color = 'var(--' + fl.id + ')';
       }
       btn.onclick = () => {
-        const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen'};
+        const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
         m.fl = fl.id;
         m.flLabel = flLabels[fl.id];
         render();
@@ -2827,6 +2837,14 @@ function buildSidebarDynamic(m) {
   if (TEAMS.length > 0) {
     const sbb = document.querySelector('#sbContent .sbb');
     if (sbb) {
+      if (m.fl === 'alle') {
+        // Kein Team-Picker nötig — Meeting gilt für die gesamte Organisation
+        const infoSec = document.createElement('div');
+        infoSec.className = 'fsec';
+        infoSec.innerHTML = `<div class="flbl">Teams</div><div style="font-size:11px;color:var(--alle);background:var(--alle-light);padding:5px 8px;border-radius:5px;border-left:3px solid var(--alle)">⊕ Org-weites Meeting — gilt für alle Ebenen</div>`;
+        const firstChild = sbb.firstElementChild;
+        if (firstChild && firstChild.nextSibling) { sbb.insertBefore(infoSec, firstChild.nextSibling); } else { sbb.appendChild(infoSec); }
+      } else {
       const teamsInFL = TEAMS.filter(t => t.fl === m.fl);
       if (teamsInFL.length > 0) {
         const teamSec = document.createElement('div');
@@ -2850,6 +2868,7 @@ function buildSidebarDynamic(m) {
           sbb.appendChild(teamSec);
         }
       }
+      } // end else (m.fl !== 'alle')
     }
   }
 }
@@ -3005,14 +3024,14 @@ function openDraftSidebar(m, date) {
 
   // Build FL picker
   const flPicker = document.getElementById('draft-fl-picker');
-  [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'}].forEach(fl=>{
+  [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'},{id:'alle',label:'Alle'}].forEach(fl=>{
     const btn=document.createElement('button');
     btn.className='dpill'+(m.fl===fl.id?' sel':'');
     btn.textContent=fl.label;
     btn.style.cssText='font-size:11px;padding:3px 10px;';
     if(m.fl===fl.id){btn.style.borderColor='var(--'+fl.id+')';btn.style.background='var(--'+fl.id+'-light)';btn.style.color='var(--'+fl.id+')';}
     btn.onclick=()=>{
-      const flLabels={fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen'};
+      const flLabels={fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
       draftMeeting.fl=fl.id;draftMeeting.flLabel=flLabels[fl.id];
       openDraftSidebar(draftMeeting, date);
     };
