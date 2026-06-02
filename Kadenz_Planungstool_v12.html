@@ -21,7 +21,7 @@
     --ms-hard:#DC2626;--ms-hard-light:#FEE2E2;
     --ms-soft:#7C3AED;--ms-soft-light:#EDE9FE;
     --ms-milestone:#EA580C;--ms-milestone-light:#FFF7ED;
-    --ferien-bg:rgba(254,243,199,0.5);
+    --ferien-bg:rgba(13,148,136,0.07);
     --sidebar-width:380px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -76,7 +76,7 @@
   .swlbl{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-light);margin-left:auto;}
   .htag{font-size:9px;color:var(--red);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-bottom:1px;}
   .htag.regional{color:var(--yellow);}
-  .ferien-tag{font-size:9px;color:#92400E;background:#FEF3C7;border-radius:2px;padding:0 3px;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .ferien-tag{font-size:9px;color:#0D9488;background:rgba(13,148,136,0.08);border-radius:2px;padding:0 3px;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
   .chip{display:flex;align-items:center;gap:3px;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:500;margin-bottom:2px;cursor:pointer;border-left:2px solid transparent;white-space:nowrap;overflow:hidden;transition:opacity .15s,transform .1s;}
   .chip:hover{opacity:.8;transform:translateX(1px);}
   .chip.fl1{background:var(--fl1-light);color:var(--fl1);border-left-color:var(--fl1);}
@@ -168,10 +168,10 @@
 
   /* Ferienzeiten display */
   .ferien-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
-  .ferien-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--yellow-light);border-radius:6px;font-size:11px;}
+  .ferien-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(13,148,136,0.08);border-radius:6px;font-size:11px;}
   .ferien-item-label{font-weight:500;flex:1;}
   .ferien-item-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);}
-  .ferien-item-bl{font-size:9px;color:#92400E;background:#FEF3C7;border-radius:3px;padding:1px 5px;}
+  .ferien-item-bl{font-size:9px;color:#0D9488;background:rgba(13,148,136,0.12);border-radius:3px;padding:1px 5px;}
 
   /* Milestone editor */
   .ms-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
@@ -315,7 +315,7 @@
     min-width:0;overflow:hidden;
   }
   .yr-cell.today-week{background:#EFF6FF;}
-  .yr-cell.ferien-week{background:rgba(254,243,199,0.35);}
+  .yr-cell.ferien-week{background:rgba(13,148,136,0.06);}
   .yr-cell.has-holiday{border-top:2px solid var(--red);}
 
   /* Event pills in year view */
@@ -1052,6 +1052,7 @@ function getMeetingsForDate(date){
     const weeksSinceAnchor = Math.floor((date - anchorDate) / (7*86400000));
     let show=false;
     switch(m.rhythm){
+      case 'einmalig': show = (m.startDate === toLocalISO(date)); break;
       case 'daily':show=true;break;
       case 'weekly':show=weekDay===(m.weekDay||3);break;
       case 'sprint-start':show=(sw===1&&weekDay===(m.weekDay||1));break;
@@ -1566,6 +1567,7 @@ function renderStammdaten() {
         <div class="nmf-grid">
           <div class="nmf-group"><div class="nmf-label">Rhythmus</div>
             <select class="fselect" id="nmf-rhythm" style="background:white">
+              <option value="einmalig">Einmalig</option>
               <option value="daily">Täglich</option>
               <option value="weekly">Wöchentlich</option>
               <option value="sprint-start">Sprint-Start</option>
@@ -1794,7 +1796,8 @@ function handleStammdatenUpload(event) {
           fl,
           flLabel: fl.toUpperCase().replace('FL1','FL1').replace('FL2','FL2').replace('FL3','FL3'),
           durationMin: parseDuration(String(row[colMap.duration]||'')),
-          rhythm: parseRhythm(String(row[colMap.rhythm]||'')),
+          rhythm: (() => { const datumRaw = String(row[colMap.datum]||'').trim(); const rhythmRaw = String(row[colMap.rhythm]||'').trim(); if (datumRaw && !rhythmRaw) return 'einmalig'; return parseRhythm(rhythmRaw); })(),
+          startDate: (() => { const raw = String(row[colMap.datum]||'').trim(); if (!raw) return null; const d = new Date(raw); return isNaN(d) ? null : toLocalISO(d); })(),
           time: parseTime(String(row[colMap.time]||'09:00')),
           weekDay: parseWeekDay(String(row[colMap.weekday]||'')),
           description: String(row[colMap.description]||'').trim(),
@@ -1855,6 +1858,7 @@ function mapColumns(keys) {
   map.sourceName  = find(['Quelle','Source','Herkunft']);
   map.important   = find(['Wichtig','Important','★']);
   map.alle        = find(['Alle Ebenen','All Levels','⊕']);
+  map.datum       = find(['Datum','Date','Gültig ab','Termin']);
   return map;
 }
 
@@ -1915,7 +1919,7 @@ function parseWeekDay(str) {
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────
 function exportMeetingsExcel() {
-  const rhythmLabel = {daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
   const dayLabel = {1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
 
   const rows = MEETINGS.map(m => ({
@@ -1980,8 +1984,8 @@ function renderYear() {
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl2)"></div>FL2</div>
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl3)"></div>FL3</div>
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--lernen)"></div>Lernen</div>
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--red)"></div>Feiertag</div>
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--yellow)"></div>Ferien/Region.</div>
+      <div class="yr-legend-item"><div style="width:18px;height:4px;border-top:3px solid var(--red);margin-top:2px;border-radius:1px"></div>Feiertag (rote Linie)</div>
+      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:#0D9488"></div>Schulferien</div>
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--ms-milestone)"></div>Meilenstein</div>
     </div>`;
   scroll.appendChild(nav);
@@ -2210,7 +2214,7 @@ function renderOverview(){
   const vis=MEETINGS.filter(m=>meetingActive(m)&&meetingVisible(m));
   document.getElementById('ovCount').textContent=`${vis.length} Meetings`;
   scroll.innerHTML='';
-  const rhythmLabel={daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmLabel={einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
   FL_ORDER.forEach(fl=>{
     const group=vis.filter(m=>m.fl===fl);if(!group.length)return;
     const sec=document.createElement('div');sec.className='ov-section';
@@ -2533,7 +2537,7 @@ function openSidebar(m,date,conflict){
 
       <div class="fsec"><div class="flbl">Rhythmus</div>
         <select class="fselect" onchange="applyRhythm('${m.id}',this.value)">
-          ${['daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
+          ${['daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
         </select>
       </div>
 
@@ -2549,22 +2553,34 @@ function openSidebar(m,date,conflict){
       </div>
 
       <div class="acc"><div class="acch" onclick="togAcc(this)"><span>Beschreibung</span><span>▾</span></div>
-        <div class="accb open"><p>${m.description}</p>${m.besonderheit?`<p class="accnote">💡 ${m.besonderheit}</p>`:''}</div></div>
+        <div class="accb open">
+          <textarea class="notiz-area" rows="3" oninput="applyField('${m.id}','description',this.value)">${m.description||''}</textarea>
+          <div style="margin-top:6px"><div class="flbl" style="margin-bottom:3px">Besonderheit / Hinweis</div>
+          <input class="finput" value="${(m.besonderheit||'').replace(/"/g,'&quot;')}" placeholder="z.B. Nicht freitags…" onchange="applyField('${m.id}','besonderheit',this.value)"></div>
+        </div></div>
       <div class="acc"><div class="acch" onclick="togAcc(this)"><span>Input → Output</span><span>▾</span></div>
         <div class="accb open">
-          <p><strong style="font-size:10px;color:var(--text-muted)">INPUT</strong><br>${m.input}</p>
-          <p><strong style="font-size:10px;color:var(--text-muted)">OUTPUT</strong><br>${m.output}</p>
-          <p><strong style="font-size:10px;color:var(--text-muted)">FLIESS IN</strong><br>${m.outputFliesIn}</p>
+          <div class="fgi" style="margin-bottom:7px"><div class="flbl">Input</div><input class="finput" value="${(m.input||'').replace(/"/g,'&quot;')}" placeholder="Was wird benötigt?" onchange="applyField('${m.id}','input',this.value)"></div>
+          <div class="fgi" style="margin-bottom:7px"><div class="flbl">Output</div><input class="finput" value="${(m.output||'').replace(/"/g,'&quot;')}" placeholder="Was entsteht?" onchange="applyField('${m.id}','output',this.value)"></div>
+          <div class="fgi"><div class="flbl">Fließt in</div><input class="finput" value="${(m.outputFliesIn||'').replace(/"/g,'&quot;')}" placeholder="Welches nächste Meeting?" onchange="applyField('${m.id}','outputFliesIn',this.value)"></div>
         </div></div>
       <div class="acc"><div class="acch" onclick="togAcc(this)"><span>Dokumentation</span><span>▾</span></div>
-        <div class="accb open">${m.doku}</div></div>
+        <div class="accb open">
+          <input class="finput" value="${(m.doku||'').replace(/"/g,'&quot;')}" placeholder="Wo wird dokumentiert?" onchange="applyField('${m.id}','doku',this.value)">
+        </div></div>
 
       <div class="fsec"><div class="flbl">Verantwortliche</div>
-        <div class="rrow"><span class="rlbl">Organisator</span><input class="finput" placeholder="${m.organisator}" style="flex:1"></div>
-        <div class="rrow"><span class="rlbl">Moderator</span><input class="finput" placeholder="${m.moderator}" style="flex:1"></div>
-        <div class="rrow"><span class="rlbl">Entscheider</span><input class="finput" placeholder="${m.entscheider}" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Organisator</span><input class="finput" value="${(m.organisator||'').replace(/"/g,'&quot;')}" onchange="applyField('${m.id}','organisator',this.value)" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Moderator</span><input class="finput" value="${(m.moderator||'').replace(/"/g,'&quot;')}" onchange="applyField('${m.id}','moderator',this.value)" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Entscheider</span><input class="finput" value="${(m.entscheider||'').replace(/"/g,'&quot;')}" onchange="applyField('${m.id}','entscheider',this.value)" style="flex:1"></div>
       </div>
-      ${m.source?`<div class="fsec"><div class="flbl">Quelle</div><a href="${m.source}" target="_blank" class="srclink">↗ ${m.sourceName}</a></div>`:''}
+      <div class="fsec"><div class="flbl">Quelle</div>
+        <div class="fgi" style="margin-bottom:5px"><input class="finput" value="${(m.sourceName||'').replace(/"/g,'&quot;')}" placeholder="Name (z.B. Scrum Guide 2020)" onchange="applyField('${m.id}','sourceName',this.value)"></div>
+        <div class="fgi" style="display:flex;align-items:center;gap:6px">
+          <input class="finput" value="${(m.source||'').replace(/"/g,'&quot;')}" placeholder="URL (https://…)" onchange="applyField('${m.id}','source',this.value)" style="flex:1">
+          ${m.source?`<a href="${m.source}" target="_blank" class="srclink" style="white-space:nowrap">↗ öffnen</a>`:''}
+        </div>
+      </div>
       ${buildChecklistHtml(m.id)}
     </div>`;
   setTimeout(() => buildSidebarDynamic(m), 0);
@@ -2670,8 +2686,8 @@ function openDraftSidebar(m, date) {
   sc.style.cssText='display:flex;flex:1;flex-direction:column;overflow:hidden;';
   const ds=date.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 
-  const rhythmOpts = ['daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'];
-  const rhythmNames = {daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmOpts = ['einmalig','daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'];
+  const rhythmNames = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
 
   sc.innerHTML = `
     <div class="sbh" style="background:var(--fl1-light)">
@@ -2739,10 +2755,28 @@ function openDraftSidebar(m, date) {
       </div>
 
       <div class="fsec">
+        <div class="flbl">Input → Output</div>
+        <div class="fgi" style="margin-bottom:5px"><div class="fsub">Input</div><input class="finput" id="draft-input" value="${m.input||''}" placeholder="Was wird benötigt?" oninput="draftMeeting.input=this.value"></div>
+        <div class="fgi" style="margin-bottom:5px"><div class="fsub">Output</div><input class="finput" id="draft-output" value="${m.output||''}" placeholder="Was entsteht?" oninput="draftMeeting.output=this.value"></div>
+        <div class="fgi"><div class="fsub">Fließt in</div><input class="finput" id="draft-flies" value="${m.outputFliesIn||''}" placeholder="Welches nächste Meeting?" oninput="draftMeeting.outputFliesIn=this.value"></div>
+      </div>
+
+      <div class="fsec">
+        <div class="flbl">Dokumentation</div>
+        <input class="finput" id="draft-doku" value="${m.doku||''}" placeholder="Wo wird dokumentiert?" oninput="draftMeeting.doku=this.value">
+      </div>
+
+      <div class="fsec">
+        <div class="flbl">Quelle</div>
+        <input class="finput" id="draft-sourcename" value="${m.sourceName||''}" placeholder="Name (z.B. Scrum Guide 2020)" oninput="draftMeeting.sourceName=this.value" style="margin-bottom:5px">
+        <input class="finput" id="draft-sourceurl" value="${m.source||''}" placeholder="URL (https://…)" oninput="draftMeeting.source=this.value">
+      </div>
+
+      <div class="fsec">
         <div class="flbl">Verantwortliche</div>
-        <div class="rrow"><span class="rlbl">Organisator</span><input class="finput" id="draft-org" value="${m.organisator}" oninput="draftMeeting.organisator=this.value" style="flex:1"></div>
-        <div class="rrow"><span class="rlbl">Moderator</span><input class="finput" id="draft-mod" value="${m.moderator}" oninput="draftMeeting.moderator=this.value" style="flex:1"></div>
-        <div class="rrow"><span class="rlbl">Entscheider</span><input class="finput" id="draft-ent" value="${m.entscheider}" oninput="draftMeeting.entscheider=this.value" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Organisator</span><input class="finput" id="draft-org" value="${m.organisator||''}" oninput="draftMeeting.organisator=this.value" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Moderator</span><input class="finput" id="draft-mod" value="${m.moderator||''}" oninput="draftMeeting.moderator=this.value" style="flex:1"></div>
+        <div class="rrow"><span class="rlbl">Entscheider</span><input class="finput" id="draft-ent" value="${m.entscheider||''}" oninput="draftMeeting.entscheider=this.value" style="flex:1"></div>
       </div>
 
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;margin-bottom:8px">
@@ -2952,6 +2986,7 @@ function duplicateMeeting(id) {
   copy.startDate = null;
   copy.notiz = '';
   MEETINGS.push(copy);
+  if (activeMeetingIds !== null) activeMeetingIds.push(copy.id);
   render();
   // Open sidebar for the copy
   const conflict = {level:'green', msg:'🟢 Kein Konflikt'};
@@ -2959,6 +2994,10 @@ function duplicateMeeting(id) {
   if (view === 'stammdaten') renderStammdaten();
 }
 
+function applyField(id, field, value) {
+  const m = MEETINGS.find(x => x.id === id);
+  if (m) m[field] = value;
+}
 function applyTime(id,val){const m=MEETINGS.find(x=>x.id===id);if(!m)return;m.time=val;updateDurCalc(m);render();}
 function applyDuration(id,val){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const mins=Math.max(15,Math.round(parseInt(val)/15)*15)||15;m.durationMin=mins;m.durationOverride=true;const inp=document.getElementById(`dur-${id}`);if(inp)inp.value=mins;updateDurCalc(m);render();}
 function updateDurCalc(m){const el=document.getElementById(`durcalc-${m.id}`);const d=getEffectiveDuration(m);if(el)el.textContent=`= ${fmtDur(d)} · Ende: ${endTime(m.time,d)}`;}
