@@ -3024,17 +3024,22 @@ function buildSidebarDynamic(m) {
       if (teamsInFL.length > 0) {
         const teamSec = document.createElement('div');
         teamSec.className = 'fsec';
+        const allChecked = !m.teamIds;
         teamSec.innerHTML = `<div class="flbl">Teams</div>
-          <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
-            <input type="checkbox" ${!m.teamIds?'checked':''} onchange="setMeetingTeams('${m.id}', null)"> Gilt für alle ${m.fl.toUpperCase()}-Teams (${teamsInFL.length})
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:6px;font-weight:500">
+            <input type="checkbox" id="chk-all-${m.id}" ${allChecked?'checked':''}
+                   onchange="toggleAllTeams('${m.id}',this.checked,'${m.fl}')">
+            Gilt für alle ${m.fl.toUpperCase()}-Teams (${teamsInFL.length})
           </label>
+          <div id="team-individual-${m.id}" style="${allChecked?'opacity:.4;pointer-events:none':''}">
           ${teamsInFL.map(t=>`
-            <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
-              <input type="checkbox" ${m.teamIds&&m.teamIds.includes(t.id)?'checked':''}
+            <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px;padding-left:8px">
+              <input type="checkbox" ${allChecked||( m.teamIds&&m.teamIds.includes(t.id))?'checked':''}
                      onchange="toggleMeetingTeam('${m.id}','${t.id}',this.checked)">
               <span style="width:8px;height:8px;border-radius:50%;background:${t.color};display:inline-block"></span>
               ${t.name}
-            </label>`).join('')}`;
+            </label>`).join('')}
+          </div>`;
         // Insert after conflict banner (first child of sbb)
         const firstChild = sbb.firstElementChild;
         if (firstChild && firstChild.nextSibling) {
@@ -3051,6 +3056,26 @@ function buildSidebarDynamic(m) {
 function setMeetingTeams(id, teamIds) {
   const m = MEETINGS.find(x => x.id === id);
   if (m) { m.teamIds = teamIds; render(); }
+}
+
+function toggleAllTeams(id, checked, fl) {
+  const m = MEETINGS.find(x => x.id === id);
+  if (!m) return;
+  if (checked) {
+    m.teamIds = null; // alle Teams dieser FL
+  } else {
+    // Auf alle Teams individuell umschalten als Startpunkt
+    m.teamIds = TEAMS.filter(t => t.fl === fl).map(t => t.id);
+  }
+  // Einzelne Checkboxen visuell freischalten/sperren
+  const indiv = document.getElementById('team-individual-' + id);
+  if (indiv) {
+    indiv.style.opacity = checked ? '.4' : '1';
+    indiv.style.pointerEvents = checked ? 'none' : 'auto';
+    // Alle Einzel-Checkboxen auf checked setzen wenn "Alle" aktiv
+    indiv.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = true; });
+  }
+  render();
 }
 
 function toggleMeetingTeam(id, teamId, checked) {
