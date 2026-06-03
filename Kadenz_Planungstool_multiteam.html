@@ -3521,13 +3521,11 @@ function loadSelectedTemplate(){
   if(!t)return;
   if(t.meetingIds && t.meetings){
     // Eigene Vorlage mit gespeicherten Meetings — komplett ersetzen
-    if(confirm(`Vorlage "${t.name}" laden? Das ersetzt alle aktuellen Meetings.`)){
-      MEETINGS.length=0;
-      t.meetings.forEach(m=>MEETINGS.push(JSON.parse(JSON.stringify(m))));
-      activeMeetingIds=null;
-      // Teams aus Vorlage wiederherstellen falls vorhanden
-      if(t.teams){ TEAMS.length=0; t.teams.forEach(tm=>TEAMS.push({...tm})); }
-    } else return;
+    MEETINGS.length=0;
+    t.meetings.forEach(m=>MEETINGS.push(JSON.parse(JSON.stringify(m))));
+    activeMeetingIds=null;
+    // Teams aus Vorlage wiederherstellen falls vorhanden
+    if(t.teams){ TEAMS.length=0; t.teams.forEach(tm=>TEAMS.push({...tm})); }
   } else {
     activeMeetingIds=t.meetingIds;
     // "Leer beginnen" → Teams leeren
