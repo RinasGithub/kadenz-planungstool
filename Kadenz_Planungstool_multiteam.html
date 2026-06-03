@@ -507,6 +507,7 @@
       <option value="3">3 Wochen</option><option value="4">4 Wochen</option>
     </select>
   </div>
+  <button class="hbtn" id="weekendToggle" onclick="toggleWeekends()" title="Wochenenden einblenden">📅 Wochenenden</button>
 </header>
 
 <div class="toolbar">
@@ -1012,6 +1013,7 @@ let view='month';
 let currentDate=new Date(2026,8,1);
 let startDate=new Date(2026,8,1);
 let sprintLen=2;
+let showWeekends = false; // Wochenenden (Sa/So) in Kalender anzeigen
 let activeFilters=new Set();
 let activeBL=[]; // selected Bundesländer — empty = show all
 let activeMeetingIds=null; // null=all, []=none
@@ -1100,6 +1102,16 @@ function getBetriebsurlaubForDate(date) {
 // FILTER
 // ══════════════════════════════════════════════════════════════════════════
 function toggleFilter(fl){if(activeFilters.has(fl))activeFilters.delete(fl);else activeFilters.add(fl);updateFilterUI();render();}
+function toggleWeekends() {
+  showWeekends = !showWeekends;
+  const btn = document.getElementById('weekendToggle');
+  if (btn) {
+    btn.style.background = showWeekends ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.12)';
+    btn.style.borderColor = showWeekends ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.22)';
+    btn.title = showWeekends ? 'Wochenenden ausblenden' : 'Wochenenden einblenden';
+  }
+  render();
+}
 function clearFilters(){activeFilters.clear();updateFilterUI();render();}
 function updateFilterUI(){document.querySelectorAll('.fbtn[data-fl]').forEach(b=>{const fl=b.dataset.fl;b.className='fbtn'+(activeFilters.has(fl)?` a-${fl}`:'');});document.getElementById('clearFilterBtn').style.display=activeFilters.size?'flex':'none';}
 function meetingVisible(m){if(!activeFilters.size)return true;return activeFilters.has(m.fl);}
@@ -1117,7 +1129,7 @@ function getMeetingsForDate(date, teamId = null){
   const result=[];
   for(const m of MEETINGS){
     if(!meetingVisible(m)||!meetingActive(m))continue;
-    if(weekDay>5)continue;
+    if(weekDay>5 && !showWeekends)continue;
     // Check startDate — skip if meeting hasn't started yet
     let anchorDate = startDate;
     if(m.startDate){
@@ -1302,20 +1314,30 @@ const TOTAL_SLOTS=(WK_END_H-WK_START_H)*4;
 function getWeekStart(d){const dt=new Date(d);const dow=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-dow);dt.setHours(0,0,0,0);return dt;}
 
 function renderWeek(){
-  const ws=getWeekStart(currentDate),we=new Date(ws);we.setDate(we.getDate()+4);
+  const numDays = showWeekends ? 7 : 5;
+  const ws=getWeekStart(currentDate),we=new Date(ws);we.setDate(we.getDate()+(numDays-1));
   const today=new Date();today.setHours(0,0,0,0);
   const kw=isoWeek(ws);
   document.getElementById('periodTitle').textContent=`KW ${kw} · ${ws.toLocaleDateString('de-DE',{day:'2-digit',month:'long'})} – ${we.toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})}`;
   document.getElementById('sprintBadge').textContent=`Sprintlänge: ${sprintLen}W`;
 
-  const hdr=document.getElementById('wkHeaderRow');hdr.innerHTML='';
+  // Update CSS grid columns dynamically
+  const wkHeaderRow = document.getElementById('wkHeaderRow');
+  const wkBody = document.getElementById('wkBody');
+  const gridCols = `52px repeat(${numDays},1fr)`;
+  wkHeaderRow.style.gridTemplateColumns = gridCols;
+  if (wkBody) wkBody.style.gridTemplateColumns = gridCols;
+
+  const hdr=wkHeaderRow;hdr.innerHTML='';
   const thE=document.createElement('div');thE.className='wk-head tc';hdr.appendChild(thE);
   const weekDays=[];
-  for(let i=0;i<5;i++){
+  for(let i=0;i<numDays;i++){
     const d=new Date(ws);d.setDate(ws.getDate()+i);weekDays.push(d);
     const th=document.createElement('div');
     const isToday=d.toDateString()===today.toDateString();
+    const isWeekend = i >= 5;
     th.className='wk-head'+(isToday?' tc-today':'');
+    if (isWeekend) th.style.background = '#FAFAFA';
     const hols=getHolidaysForDate(d,activeBL);
     th.innerHTML=`<div class="wkdn">${DAYS_SHORT[i]}</div><div class="wkdd">${d.getDate()}. ${MONTHS[d.getMonth()].slice(0,3)}${hols.length?` <span style="color:var(--red);font-size:9px">●</span>`:''}</div><div class="wk-add-btn" style="font-size:9px;color:var(--fl1);cursor:pointer;margin-top:2px;font-weight:500">+ Meeting</div>`;
     const dCopy = new Date(d);
@@ -1339,8 +1361,9 @@ function renderWeek(){
     const ferien=getFerienForDate(d,activeBL);
     const bu=getBetriebsurlaubForDate(d);
     const hasFerienBg=ferien.length>0||bu.length>0;
+    const isWeekendCol = di >= 5;
     const col=document.createElement('div');
-    col.style.cssText=`grid-column:${di+2};height:${totalH}px;position:relative;border-right:1px solid var(--border);background:${isToday?'#EFF6FF':hasFerienBg?'rgba(254,243,199,0.4)':'var(--surface)'};`;
+    col.style.cssText=`grid-column:${di+2};height:${totalH}px;position:relative;border-right:1px solid var(--border);background:${isToday?'#EFF6FF':hasFerienBg?'rgba(254,243,199,0.4)':isWeekendCol?'#FAFAFA':'var(--surface)'};`;
 
     // Grid lines
     for(let s=0;s<TOTAL_SLOTS;s++){
@@ -2241,7 +2264,8 @@ function renderYear() {
 
       weeks.forEach((w) => {
         const cell = buildWeekCell(w);
-        for (let di = 0; di < 5; di++) {
+        const daysInWeek = showWeekends ? 7 : 5;
+        for (let di = 0; di < daysInWeek; di++) {
           const day = new Date(w.start); day.setDate(day.getDate() + di);
           const ms = getMilestonesForDate(day);
           const bu = getBetriebsurlaubForDate(day);
@@ -2298,7 +2322,8 @@ function renderYear() {
         weeks.forEach((w) => {
           const cell = buildWeekCell(w);
           const seen = new Set();
-          for (let di = 0; di < 5; di++) {
+          const daysInWeek = showWeekends ? 7 : 5;
+          for (let di = 0; di < daysInWeek; di++) {
             const day = new Date(w.start); day.setDate(day.getDate() + di);
             const dayMeetings = getMeetingsForDate(day, team.id).filter(m => m.fl === lane.id);
             dayMeetings.forEach(m => {
@@ -2347,7 +2372,8 @@ function renderYear() {
           cell.style.background = 'rgba(30,58,95,0.03)';
         }
         const seen = new Set();
-        for (let di = 0; di < 5; di++) {
+        const daysInWeek = showWeekends ? 7 : 5;
+        for (let di = 0; di < daysInWeek; di++) {
           const day = new Date(w.start); day.setDate(day.getDate() + di);
           const meetings = getMeetingsForDate(day).filter(m => m.fl === lane.id);
           meetings.forEach(m => {
@@ -2730,7 +2756,10 @@ function openSidebar(m,date,conflict){
   const effDurSb=getEffectiveDuration(m);
   const end=endTime(m.time,effDurSb);
   const durCalc=`= ${fmtDur(effDurSb)} · Ende: ${end}`;
-  const dayOpts=['Mo','Di','Mi','Do','Fr'].map((d,i)=>`<button class="dpill${m.weekDay===i+1?' sel':''}" onclick="setWeekDay('${m.id}',${i+1},this)">${d}</button>`).join('')+`<button class="dpill${m.weekDay===null?' sel':''}" onclick="setWeekDay('${m.id}',null,this)">–</button>`;
+  const _allDayOpts = showWeekends
+    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
+    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  const dayOpts=_allDayOpts.map(({label,val})=>`<button class="dpill${m.weekDay===val?' sel':''}" onclick="setWeekDay('${m.id}',${val},this)">${label}</button>`).join('')+`<button class="dpill${m.weekDay===null?' sel':''}" onclick="setWeekDay('${m.id}',null,this)">–</button>`;
   const isCustom=m.framework==='Eigener Ansatz';
   const conflictExtra = getAdditionalConflictInfo(date);
   const _currentSidebarMeeting = m;
@@ -2966,7 +2995,7 @@ function quickAddMeeting(date) {
     id, name: 'Neues Meeting',
     framework: 'Eigener Ansatz', fl: 'fl1', flLabel: 'FL1',
     durationMin: 60, rhythm: 'weekly',
-    time: '09:00', weekDay: date.getDay() && date.getDay() <= 5 ? date.getDay() : 1,
+    time: '09:00', weekDay: date.getDay() === 0 ? 7 : date.getDay(),
     startDate: ds,
     description: '', input: '', output: '', outputFliesIn: '',
     doku: '', besonderheit: '',
@@ -3106,11 +3135,14 @@ function openDraftSidebar(m, date) {
 
   // Build day picker
   const dayPicker = document.getElementById('draft-day-picker');
-  ['Mo','Di','Mi','Do','Fr'].forEach((d,i)=>{
+  const allDays = showWeekends
+    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
+    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  allDays.forEach(({label,val})=>{
     const btn=document.createElement('button');
-    btn.className='dpill'+(m.weekDay===i+1?' sel':'');
-    btn.textContent=d;
-    btn.onclick=()=>{draftMeeting.weekDay=i+1;openDraftSidebar(draftMeeting,date);};
+    btn.className='dpill'+(m.weekDay===val?' sel':'');
+    btn.textContent=label;
+    btn.onclick=()=>{draftMeeting.weekDay=val;openDraftSidebar(draftMeeting,date);};
     dayPicker.appendChild(btn);
   });
   const noneBtn=document.createElement('button');
