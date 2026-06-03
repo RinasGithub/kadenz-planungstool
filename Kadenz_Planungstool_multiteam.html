@@ -1281,7 +1281,7 @@ function renderMonth(){
       });
     }
 
-    if(!isWe&&!other){
+    if((!isWe || showWeekends) && !other){
       // Quick-add hint on hover
       const addHint = document.createElement('div');
       addHint.className = 'cal-add-hint';
@@ -1520,6 +1520,7 @@ function renderProfileBar() {
     <input class="profile-name" type="text" value="${currentProfileName}" 
            onchange="currentProfileName=this.value" 
            onblur="currentProfileName=this.value">
+    ${activeTemplateName ? `<span style="font-size:10px;color:var(--text-muted);padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px">⬡ Basis: ${activeTemplateName}</span>` : ''}
     <button class="profile-btn save" onclick="saveProfile()">↓ Speichern</button>
     <button class="profile-btn load" onclick="triggerProfileLoad()">↑ Laden</button>
     <button class="profile-btn new" onclick="resetProfile()">+ Neu</button>
@@ -3345,6 +3346,7 @@ const TEMPLATES=[
   {id:'empty',icon:'⬜',name:'Leer beginnen',desc:'Grüne Wiese. Du baust selbst.',meetingIds:[]},
 ];
 let selectedTemplateId='current';
+let activeTemplateName = null; // Name der zuletzt geladenen Vorlage
 
 // Custom Templates (gespeichert in localStorage)
 const CUSTOM_TEMPLATES_KEY = 'kadenz_custom_templates';
@@ -3416,10 +3418,16 @@ function loadSelectedTemplate(){
       MEETINGS.length=0;
       t.meetings.forEach(m=>MEETINGS.push(JSON.parse(JSON.stringify(m))));
       activeMeetingIds=null;
+      // Teams aus Vorlage wiederherstellen falls vorhanden
+      if(t.teams){ TEAMS.length=0; t.teams.forEach(tm=>TEAMS.push({...tm})); }
     } else return;
   } else {
     activeMeetingIds=t.meetingIds;
+    // "Leer beginnen" → Teams leeren
+    if(t.id==='empty'){ TEAMS.length=0; }
   }
+  activeTemplateName = t.id==='current' ? null : t.name;
+  renderProfileBar();
   closeTemplateDialog();
   render();
 }
@@ -3441,8 +3449,11 @@ function confirmSaveTemplate(){
     id, icon, name, desc,
     meetingIds: MEETINGS.map(m=>m.id),
     meetings: JSON.parse(JSON.stringify(MEETINGS)),
+    teams: JSON.parse(JSON.stringify(TEAMS)),
     savedAt: new Date().toISOString()
   });
+  activeTemplateName = name;
+  renderProfileBar();
   saveCustomTemplates();
   document.getElementById('tpl-name-input').value='';
   document.getElementById('tpl-desc-input').value='';
