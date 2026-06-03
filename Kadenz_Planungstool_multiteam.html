@@ -3418,8 +3418,8 @@ function duplicateMeeting(id) {
   const copy = JSON.parse(JSON.stringify(orig));
   copy.id = id + '-copy-' + Date.now().toString(36);
   copy.name = orig.name + ' (Kopie)';
-  copy.weekDay = null; // user should pick a different day
-  copy.startDate = null;
+  copy.weekDay = orig.weekDay; // Wochentag vom Original übernehmen
+  copy.startDate = orig.startDate; // Gültig-ab vom Original übernehmen
   copy.notiz = '';
   MEETINGS.push(copy);
   if (activeMeetingIds !== null) activeMeetingIds.push(copy.id);
