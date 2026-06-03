@@ -2618,6 +2618,35 @@ function renderKontext(){
         <div class="ms-form-group"><label class="ms-form-label">Farbe</label><input type="color" id="new-team-color" value="#2563EB" style="width:36px;height:32px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px"></div>
         <button class="add-btn" onclick="addTeam()">+ Team</button>
       </div>
+      <div id="edit-team-form" style="display:none;margin-top:10px;padding:10px;background:var(--yellow-light);border:1px solid var(--yellow);border-radius:6px">
+        <div style="font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:8px">✎ Team bearbeiten</div>
+        <input type="hidden" id="edit-team-id">
+        <div style="display:grid;grid-template-columns:1fr 130px 130px 40px auto;gap:7px;align-items:end">
+          <div class="ms-form-group"><label class="ms-form-label">Teamname</label><input class="finput" id="edit-team-name" placeholder="Teamname"></div>
+          <div class="ms-form-group"><label class="ms-form-label">Flight Level</label>
+            <select class="fselect" id="edit-team-fl">
+              <option value="fl1">FL1 — Team</option>
+              <option value="fl2">FL2 — Koordination</option>
+              <option value="fl3">FL3 — Management</option>
+              <option value="lernen">Lernen</option>
+            </select>
+          </div>
+          <div class="ms-form-group"><label class="ms-form-label">Sprintlänge</label>
+            <select class="fselect" id="edit-team-sprint">
+              <option value="">Kanban</option>
+              <option value="1">1 Woche</option>
+              <option value="2">2 Wochen</option>
+              <option value="3">3 Wochen</option>
+              <option value="4">4 Wochen</option>
+            </select>
+          </div>
+          <div class="ms-form-group"><label class="ms-form-label">Farbe</label><input type="color" id="edit-team-color" style="width:36px;height:32px;border:1px solid var(--border);border-radius:5px;cursor:pointer;padding:2px"></div>
+          <div style="display:flex;gap:5px">
+            <button class="add-btn" style="background:var(--yellow)" onclick="confirmEditTeam()">Speichern</button>
+            <button class="dialog-btn secondary" style="padding:6px 10px" onclick="document.getElementById('edit-team-form').style.display='none'">✕</button>
+          </div>
+        </div>
+      </div>
     </div>`;
   scroll.appendChild(teamSec);
 
@@ -2629,7 +2658,13 @@ function renderKontext(){
       const item = document.createElement('div');
       item.className = 'ms-item';
       item.style.borderLeft = `3px solid ${team.color}`;
-      item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${team.color};display:inline-block;margin-right:4px"></span><span class="ms-item-name">${team.name}</span><span class="ms-item-type" style="background:#F1F5F9;color:#475569">${FL_NAMES[team.fl]||team.fl}</span><span class="ms-item-type" style="background:#F1F5F9;color:#475569">${team.sprintLen ? team.sprintLen+'W' : 'Kanban'}</span><button class="ms-del" onclick="deleteTeam('${team.id}')">×</button>`;
+      item.innerHTML = `
+        <span style="width:10px;height:10px;border-radius:50%;background:${team.color};display:inline-block;margin-right:4px;flex-shrink:0"></span>
+        <span class="ms-item-name" style="flex:1">${team.name}</span>
+        <span class="ms-item-type" style="background:#F1F5F9;color:#475569">${FL_NAMES[team.fl]||team.fl}</span>
+        <span class="ms-item-type" style="background:#F1F5F9;color:#475569">${team.sprintLen ? team.sprintLen+'W' : 'Kanban'}</span>
+        <button class="sd-edit-btn" onclick="startEditTeam('${team.id}')" title="Bearbeiten">✎</button>
+        <button class="ms-del" onclick="deleteTeam('${team.id}')" title="Löschen">×</button>`;
       teamList.appendChild(item);
     });
   }
@@ -2655,6 +2690,45 @@ function deleteTeam(id) {
   TEAMS = TEAMS.filter(t => t.id !== id);
   renderKontext();
   if (view === 'year') render();
+}
+
+function startEditTeam(id) {
+  const team = TEAMS.find(t => t.id === id);
+  if (!team) return;
+  document.getElementById('edit-team-id').value = id;
+  document.getElementById('edit-team-name').value = team.name;
+  document.getElementById('edit-team-fl').value = team.fl;
+  document.getElementById('edit-team-sprint').value = team.sprintLen || '';
+  document.getElementById('edit-team-color').value = team.color;
+  document.getElementById('edit-team-form').style.display = 'block';
+  document.getElementById('edit-team-name').focus();
+}
+
+function confirmEditTeam() {
+  const id = document.getElementById('edit-team-id').value;
+  const team = TEAMS.find(t => t.id === id);
+  if (!team) return;
+  const newFl = document.getElementById('edit-team-fl').value;
+  const flChanged = newFl !== team.fl;
+  // FL-Wechsel: Meetings fragen
+  if (flChanged) {
+    const affectedMeetings = MEETINGS.filter(m => m.teamIds && m.teamIds.includes(id));
+    if (affectedMeetings.length > 0) {
+      const moveAlso = confirm(
+        `Das Team wechselt von ${team.fl.toUpperCase()} zu ${newFl.toUpperCase()}.\n` +
+        `${affectedMeetings.length} Meeting(s) sind diesem Team zugewiesen.\n\n` +
+        `Sollen diese Meetings auch auf ${newFl.toUpperCase()} umgestellt werden?`
+      );
+      if (moveAlso) affectedMeetings.forEach(m => { m.fl = newFl; m.flLabel = newFl.toUpperCase(); });
+    }
+  }
+  team.name = document.getElementById('edit-team-name').value.trim() || team.name;
+  team.fl = newFl;
+  team.sprintLen = document.getElementById('edit-team-sprint').value ? parseInt(document.getElementById('edit-team-sprint').value) : null;
+  team.color = document.getElementById('edit-team-color').value;
+  document.getElementById('edit-team-form').style.display = 'none';
+  renderKontext();
+  render();
 }
 
 function renderMilestoneList(container){
@@ -2952,7 +3026,7 @@ function buildSidebarDynamic(m) {
         teamSec.className = 'fsec';
         teamSec.innerHTML = `<div class="flbl">Teams</div>
           <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
-            <input type="checkbox" ${!m.teamIds?'checked':''} onchange="setMeetingTeams('${m.id}', null)"> Alle Teams (FL-weit)
+            <input type="checkbox" ${!m.teamIds?'checked':''} onchange="setMeetingTeams('${m.id}', null)"> Gilt für alle ${m.fl.toUpperCase()}-Teams (${teamsInFL.length})
           </label>
           ${teamsInFL.map(t=>`
             <label style="font-size:11px;display:flex;align-items:center;gap:5px;margin-bottom:3px">
