@@ -499,7 +499,7 @@
   </div>
   <div class="hsp"></div>
   <button class="hbtn" onclick="initTemplateDialog()">⬡ Vorlage</button>
-  <div class="ctrl"><label>Projektstart</label><input type="date" id="startDate" value="2026-09-01"></div>
+  <div class="ctrl"><label>Projektstart</label><input type="date" id="startDate"></div>
   <div class="ctrl" title="Sprintlänge: Wie viele Wochen dauert ein Sprint? Wirkt sich auf Sprint-Start/Ende-Termine und Scrum-Eventdauern aus.">
     <label>Sprintlänge</label>
     <select id="sprintLen">
@@ -627,6 +627,11 @@
           <button class="dialog-btn secondary" onclick="document.getElementById('editTemplateForm').style.display='none'">✕</button>
         </div>
       </div>
+    </div>
+    <div style="padding:10px 22px;border-top:1px solid var(--border);background:var(--bg);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted)">Projektstart:</span>
+      <input type="date" id="tpl-startdate" class="finput" style="font-family:'IBM Plex Mono',monospace;width:150px;font-size:12px">
+      <span style="font-size:10px;color:var(--text-muted)">Ab wann gilt das Modell?</span>
     </div>
     <div class="dialog-foot">
       <button class="dialog-btn secondary" onclick="closeTemplateDialog()">Abbrechen</button>
@@ -1010,8 +1015,8 @@ const ROLE_LABELS = {sm:'SM',po:'PO',team:'Team',alle:'Alle',mgmt:'Mgmt',rte:'RT
 // STATE
 // ══════════════════════════════════════════════════════════════════════════
 let view='month';
-let currentDate=new Date(2026,8,1);
-let startDate=new Date(2026,8,1);
+let startDate=(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;})();
+let currentDate=new Date(startDate);
 let sprintLen=2;
 let showWeekends = false; // Wochenenden (Sa/So) in Kalender anzeigen
 let activeFilters=new Set();
@@ -3401,6 +3406,9 @@ function initTemplateDialog(){
 
   document.getElementById('saveTemplateForm').style.display='none';
   document.getElementById('editTemplateForm').style.display='none';
+  // Projektstart-Feld vorbelegen
+  const tplDateInput = document.getElementById('tpl-startdate');
+  if(tplDateInput) tplDateInput.value = toLocalISO(startDate);
   document.getElementById('templateDialog').style.display='flex';
 }
 
@@ -3425,6 +3433,13 @@ function loadSelectedTemplate(){
     activeMeetingIds=t.meetingIds;
     // "Leer beginnen" → Teams leeren
     if(t.id==='empty'){ TEAMS.length=0; }
+  }
+  // Projektstart aus Dialog übernehmen
+  const tplDateVal = document.getElementById('tpl-startdate')?.value;
+  if(tplDateVal) {
+    startDate = parseLocalDate(tplDateVal);
+    currentDate = new Date(startDate);
+    document.getElementById('startDate').value = tplDateVal;
   }
   activeTemplateName = t.id==='current' ? null : t.name;
   renderProfileBar();
@@ -3590,6 +3605,7 @@ document.getElementById('sprintLen').addEventListener('change',e=>{sprintLen=par
 // ══════════════════════════════════════════════════════════════════════════
 // Ensure monthArea visible before render
 document.getElementById('monthArea').style.display='flex';
+document.getElementById('startDate').value = toLocalISO(startDate);
 renderProfileBar();
 render();
 initTemplateDialog();
