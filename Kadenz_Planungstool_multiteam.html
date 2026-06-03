@@ -277,6 +277,12 @@
   .tpl-name{font-size:13px;font-weight:600;margin-bottom:3px;}
   .tpl-desc{font-size:11px;color:var(--text-muted);line-height:1.4;}
   .tpl-count{font-size:10px;color:var(--text-muted);margin-top:6px;font-family:'IBM Plex Mono',monospace;}
+  .tpl-card-custom{position:relative;}
+  .tpl-card-actions{position:absolute;top:6px;right:6px;display:flex;gap:3px;opacity:0;transition:opacity .15s;}
+  .tpl-card-custom:hover .tpl-card-actions{opacity:1;}
+  .tpl-action-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);background:white;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;}
+  .tpl-action-btn:hover{background:var(--red-light);border-color:var(--red);color:var(--red);}
+  .tpl-action-btn.edit:hover{background:var(--yellow-light);border-color:var(--yellow);color:var(--yellow);}
   .dialog-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
   .dialog-btn{padding:8px 18px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;}
   .dialog-btn.primary{background:var(--fl1);color:white;}.dialog-btn.primary:hover{background:#1D4ED8;}
@@ -558,9 +564,69 @@
 <div id="popup" class="popup" style="display:none"></div>
 
 <div class="dialog-ov" id="templateDialog" style="display:none">
-  <div class="dialog">
-    <div class="dialog-head"><h2>Kadenzmodell wählen</h2><p>Wähle eine Vorlage als Ausgangspunkt — oder starte auf der grünen Wiese.</p></div>
-    <div class="dialog-body" id="templateCards"></div>
+  <div class="dialog" style="width:680px;max-width:97vw">
+    <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2>Kadenzmodell wählen</h2>
+        <p>Wähle eine Vorlage als Ausgangspunkt — oder starte auf der grünen Wiese.</p>
+      </div>
+      <div style="display:flex;gap:6px">
+        <label class="dialog-btn secondary" style="cursor:pointer;display:flex;align-items:center;gap:5px" title="Excel-Datei als neue Vorlage importieren">
+          📥 Excel als Vorlage
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importExcelAsTemplate(this)">
+        </label>
+        <button class="dialog-btn secondary" onclick="saveCurrentAsTemplate()" title="Aktuellen Stand als neue Vorlage speichern">💾 Aktuell speichern</button>
+      </div>
+    </div>
+    <div style="padding:6px 22px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border)">Standard-Vorlagen</div>
+    <div class="dialog-body" id="templateCards" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div id="customTemplatesSection" style="display:none">
+      <div style="padding:6px 22px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border);border-top:2px solid var(--border)">Eigene Vorlagen</div>
+      <div class="dialog-body" id="customTemplateCards" style="grid-template-columns:repeat(4,1fr)"></div>
+    </div>
+    <div id="saveTemplateForm" style="display:none;padding:16px 22px;border-top:2px solid var(--fl1-mid);background:var(--fl1-light)">
+      <div style="font-size:12px;font-weight:700;color:var(--fl1);margin-bottom:10px">💾 Aktuellen Stand als Vorlage speichern</div>
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr auto;gap:8px;align-items:end">
+        <div>
+          <div style="font-size:10px;color:var(--fl1);font-weight:600;margin-bottom:3px">Icon</div>
+          <input id="tpl-icon-input" class="finput" value="📋" style="text-align:center;font-size:16px;width:40px;padding:4px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--fl1);font-weight:600;margin-bottom:3px">Name *</div>
+          <input id="tpl-name-input" class="finput" placeholder="z.B. Kunde XY Scrum-Modell">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--fl1);font-weight:600;margin-bottom:3px">Beschreibung</div>
+          <input id="tpl-desc-input" class="finput" placeholder="Kurze Beschreibung…">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="add-btn" onclick="confirmSaveTemplate()">Speichern</button>
+          <button class="dialog-btn secondary" onclick="document.getElementById('saveTemplateForm').style.display='none'">✕</button>
+        </div>
+      </div>
+    </div>
+    <div id="editTemplateForm" style="display:none;padding:16px 22px;border-top:2px solid var(--yellow);background:var(--yellow-light)">
+      <div style="font-size:12px;font-weight:700;color:var(--yellow);margin-bottom:10px">✏️ Vorlage bearbeiten</div>
+      <input type="hidden" id="edit-tpl-id">
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr auto;gap:8px;align-items:end">
+        <div>
+          <div style="font-size:10px;font-weight:600;margin-bottom:3px">Icon</div>
+          <input id="edit-tpl-icon" class="finput" style="text-align:center;font-size:16px;width:40px;padding:4px">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;margin-bottom:3px">Name</div>
+          <input id="edit-tpl-name" class="finput">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;margin-bottom:3px">Beschreibung</div>
+          <input id="edit-tpl-desc" class="finput">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="add-btn" style="background:var(--yellow)" onclick="confirmEditTemplate()">Speichern</button>
+          <button class="dialog-btn secondary" onclick="document.getElementById('editTemplateForm').style.display='none'">✕</button>
+        </div>
+      </div>
+    </div>
     <div class="dialog-foot">
       <button class="dialog-btn secondary" onclick="closeTemplateDialog()">Abbrechen</button>
       <button class="dialog-btn primary" onclick="loadSelectedTemplate()">Laden</button>
@@ -3248,19 +3314,206 @@ const TEMPLATES=[
 ];
 let selectedTemplateId='current';
 
+// Custom Templates (gespeichert in localStorage)
+const CUSTOM_TEMPLATES_KEY = 'kadenz_custom_templates';
+let customTemplates = JSON.parse(localStorage.getItem(CUSTOM_TEMPLATES_KEY) || '[]');
+
+function saveCustomTemplates() {
+  localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customTemplates));
+}
+
 function initTemplateDialog(){
-  const cards=document.getElementById('templateCards');cards.innerHTML='';
+  // Standard-Karten
+  const cards=document.getElementById('templateCards');
+  cards.innerHTML='';
   TEMPLATES.forEach(t=>{
     const count=t.meetingIds===null?MEETINGS.length:t.meetingIds.length;
-    const card=document.createElement('div');card.className='tpl-card'+(t.id===selectedTemplateId?' selected':'');
+    const card=document.createElement('div');
+    card.className='tpl-card'+(t.id===selectedTemplateId?' selected':'');
     card.innerHTML=`<div class="tpl-icon">${t.icon}</div><div class="tpl-name">${t.name}</div><div class="tpl-desc">${t.desc}</div><div class="tpl-count">${count} Meetings</div>`;
-    card.addEventListener('click',()=>{selectedTemplateId=t.id;cards.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');});
+    card.addEventListener('click',()=>{selectedTemplateId=t.id;document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');});
     cards.appendChild(card);
   });
+
+  // Eigene Vorlagen
+  const section=document.getElementById('customTemplatesSection');
+  const customCards=document.getElementById('customTemplateCards');
+  customCards.innerHTML='';
+  if(customTemplates.length>0){
+    section.style.display='block';
+    customTemplates.forEach(t=>{
+      const card=document.createElement('div');
+      card.className='tpl-card tpl-card-custom'+(t.id===selectedTemplateId?' selected':'');
+      card.innerHTML=`
+        <div class="tpl-card-actions">
+          <button class="tpl-action-btn edit" onclick="startEditTemplate('${t.id}',event)" title="Bearbeiten">✏️</button>
+          <button class="tpl-action-btn" onclick="deleteCustomTemplate('${t.id}',event)" title="Löschen">✕</button>
+        </div>
+        <div class="tpl-icon">${t.icon}</div>
+        <div class="tpl-name">${t.name}</div>
+        <div class="tpl-desc">${t.desc||''}</div>
+        <div class="tpl-count">${t.meetingIds?t.meetingIds.length:0} Meetings</div>`;
+      card.addEventListener('click',(e)=>{
+        if(e.target.closest('.tpl-card-actions'))return;
+        selectedTemplateId=t.id;
+        document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+      });
+      customCards.appendChild(card);
+    });
+  } else {
+    section.style.display='none';
+  }
+
+  document.getElementById('saveTemplateForm').style.display='none';
+  document.getElementById('editTemplateForm').style.display='none';
   document.getElementById('templateDialog').style.display='flex';
 }
+
 function closeTemplateDialog(){document.getElementById('templateDialog').style.display='none';}
-function loadSelectedTemplate(){const t=TEMPLATES.find(x=>x.id===selectedTemplateId);if(!t)return;activeMeetingIds=t.meetingIds;closeTemplateDialog();render();}
+
+function loadSelectedTemplate(){
+  // Erst in Standard-Vorlagen suchen
+  let t=TEMPLATES.find(x=>x.id===selectedTemplateId);
+  // Dann in eigenen Vorlagen
+  if(!t) t=customTemplates.find(x=>x.id===selectedTemplateId);
+  if(!t)return;
+  if(t.meetingIds && t.meetings){
+    // Eigene Vorlage mit gespeicherten Meetings — komplett ersetzen
+    if(confirm(`Vorlage "${t.name}" laden? Das ersetzt alle aktuellen Meetings.`)){
+      MEETINGS.length=0;
+      t.meetings.forEach(m=>MEETINGS.push(JSON.parse(JSON.stringify(m))));
+      activeMeetingIds=null;
+    } else return;
+  } else {
+    activeMeetingIds=t.meetingIds;
+  }
+  closeTemplateDialog();
+  render();
+}
+
+function saveCurrentAsTemplate(){
+  const form=document.getElementById('saveTemplateForm');
+  form.style.display=form.style.display==='none'?'block':'none';
+  document.getElementById('editTemplateForm').style.display='none';
+  document.getElementById('tpl-name-input').focus();
+}
+
+function confirmSaveTemplate(){
+  const name=document.getElementById('tpl-name-input').value.trim();
+  if(!name){alert('Bitte einen Namen eingeben.');return;}
+  const icon=document.getElementById('tpl-icon-input').value.trim()||'📋';
+  const desc=document.getElementById('tpl-desc-input').value.trim();
+  const id='custom-'+Date.now().toString(36);
+  customTemplates.push({
+    id, icon, name, desc,
+    meetingIds: MEETINGS.map(m=>m.id),
+    meetings: JSON.parse(JSON.stringify(MEETINGS)),
+    savedAt: new Date().toISOString()
+  });
+  saveCustomTemplates();
+  document.getElementById('tpl-name-input').value='';
+  document.getElementById('tpl-desc-input').value='';
+  document.getElementById('tpl-icon-input').value='📋';
+  initTemplateDialog();
+}
+
+function startEditTemplate(id, e){
+  e.stopPropagation();
+  const t=customTemplates.find(x=>x.id===id);
+  if(!t)return;
+  document.getElementById('edit-tpl-id').value=id;
+  document.getElementById('edit-tpl-icon').value=t.icon;
+  document.getElementById('edit-tpl-name').value=t.name;
+  document.getElementById('edit-tpl-desc').value=t.desc||'';
+  document.getElementById('editTemplateForm').style.display='block';
+  document.getElementById('saveTemplateForm').style.display='none';
+  document.getElementById('edit-tpl-name').focus();
+}
+
+function confirmEditTemplate(){
+  const id=document.getElementById('edit-tpl-id').value;
+  const t=customTemplates.find(x=>x.id===id);
+  if(!t)return;
+  t.icon=document.getElementById('edit-tpl-icon').value.trim()||'📋';
+  t.name=document.getElementById('edit-tpl-name').value.trim()||t.name;
+  t.desc=document.getElementById('edit-tpl-desc').value.trim();
+  saveCustomTemplates();
+  document.getElementById('editTemplateForm').style.display='none';
+  initTemplateDialog();
+}
+
+function deleteCustomTemplate(id, e){
+  e.stopPropagation();
+  const t=customTemplates.find(x=>x.id===id);
+  if(!t)return;
+  if(!confirm(`Vorlage "${t.name}" löschen?`))return;
+  customTemplates=customTemplates.filter(x=>x.id!==id);
+  if(selectedTemplateId===id)selectedTemplateId='current';
+  saveCustomTemplates();
+  initTemplateDialog();
+}
+
+function importExcelAsTemplate(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){alert('Keine Daten gefunden.');return;}
+      const colMap=mapColumns(Object.keys(rows[0]));
+      const importedMeetings=[];
+      rows.forEach(row=>{
+        const name=String(row[colMap.name]||'').trim();
+        if(!name||name.toLowerCase().includes('meeting-name'))return;
+        const fl=parseFL(String(row[colMap.fl]||''));
+        if(!fl)return;
+        const datumRaw=String(row[colMap.datum]||'').trim();
+        importedMeetings.push({
+          id:name.toLowerCase().replace(/[^a-z0-9]/g,'-').slice(0,30)+'-'+Date.now().toString(36),
+          name,
+          framework:String(row[colMap.framework]||'Eigener Ansatz').trim(),
+          fl,flLabel:fl.toUpperCase(),
+          durationMin:parseDuration(String(row[colMap.duration]||'')),
+          rhythm:datumRaw&&!String(row[colMap.rhythm]||'').trim()?'einmalig':parseRhythm(String(row[colMap.rhythm]||'')),
+          startDate:datumRaw?(()=>{const d=new Date(datumRaw);return isNaN(d)?null:toLocalISO(d);})():null,
+          time:parseTime(String(row[colMap.time]||'09:00')),
+          weekDay:parseWeekDay(String(row[colMap.weekday]||'')),
+          description:String(row[colMap.description]||'').trim(),
+          input:String(row[colMap.input]||'').trim(),
+          output:String(row[colMap.output]||'').trim(),
+          outputFliesIn:String(row[colMap.outputFliesIn]||'').trim(),
+          doku:String(row[colMap.doku]||'').trim(),
+          besonderheit:String(row[colMap.besonderheit]||'').trim(),
+          organisator:String(row[colMap.organisator]||'').trim(),
+          moderator:String(row[colMap.moderator]||'').trim(),
+          entscheider:String(row[colMap.entscheider]||'').trim(),
+          source:String(row[colMap.sourceUrl]||'').trim(),
+          sourceName:String(row[colMap.sourceName]||'').trim(),
+          important:String(row[colMap.important]||'').includes('★'),
+          alle:false,teamIds:null,notiz:''
+        });
+      });
+      if(!importedMeetings.length){alert('Keine gültigen Meetings gefunden.');return;}
+      const tplName=file.name.replace(/\.[^.]+$/,'');
+      const id='custom-xl-'+Date.now().toString(36);
+      customTemplates.push({
+        id,icon:'📊',name:tplName,
+        desc:`${importedMeetings.length} Meetings aus Excel importiert`,
+        meetingIds:importedMeetings.map(m=>m.id),
+        meetings:importedMeetings,
+        savedAt:new Date().toISOString()
+      });
+      saveCustomTemplates();
+      input.value='';
+      initTemplateDialog();
+    }catch(err){alert('Fehler beim Lesen: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // VIEW SWITCH + NAVIGATION
