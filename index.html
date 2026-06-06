@@ -515,6 +515,7 @@
   </div>
   <div class="hsp"></div>
   <button class="hbtn" onclick="initTemplateDialog()">⬡ Vorlage</button>
+  <button class="hbtn" onclick="document.getElementById('icsDialog').style.display='flex'">📅 Kalender-Export</button>
   <div class="ctrl"><label>Projektstart</label><input type="date" id="startDate"></div>
   <div class="ctrl" title="Sprintlänge: Wie viele Wochen dauert ein Sprint? Wirkt sich auf Sprint-Start/Ende-Termine und Scrum-Eventdauern aus.">
     <label>Sprintlänge</label>
@@ -559,6 +560,7 @@
     <div class="ov-toolbar">
       <span class="ov-toolbar-title">Kadenzmodell</span>
       <span class="ov-count" id="ovCount"></span>
+      <button class="pdf-btn" style="background:var(--fl2);margin-right:6px" onclick="document.getElementById('icsDialog').style.display='flex'">📅 ICS Export</button>
       <button class="pdf-btn" onclick="window.print()">⬇ Als PDF drucken</button>
     </div>
     <div class="ov-scroll" id="ovScroll"></div>
@@ -652,6 +654,47 @@
     <div class="dialog-foot">
       <button class="dialog-btn secondary" onclick="closeTemplateDialog()">Abbrechen</button>
       <button class="dialog-btn primary" onclick="loadSelectedTemplate()">Laden</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog-ov" id="icsDialog" style="display:none">
+  <div class="dialog" style="width:480px">
+    <div class="dialog-head">
+      <h2>📅 Kalender-Export (ICS)</h2>
+      <p>Exportiere Termine für Outlook, Google Calendar oder Apple Calendar.</p>
+    </div>
+    <div class="dialog-body" style="display:block;padding:20px 22px">
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">📋 Meetings (wiederkehrend)</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Alle berechneten Termine basierend auf Rhythmus und Projektstart.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:11px;color:var(--text-muted)">Zeitraum:</label>
+          <select class="fselect" id="ics-months" style="width:160px">
+            <option value="3">Nächste 3 Monate</option>
+            <option value="6">Nächste 6 Monate</option>
+            <option value="12" selected>Nächste 12 Monate</option>
+            <option value="24">Nächste 24 Monate</option>
+          </select>
+          <button class="add-btn" onclick="exportMeetingsICS(parseInt(document.getElementById('ics-months').value))">⬇ Meetings exportieren</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">🎯 Spezialtermine</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Kick-Offs, Workshops, Innovationswochen — alle einmaligen Events.</div>
+        <button class="add-btn" style="background:var(--ms-soft)" onclick="exportSpecialEventsICS()">⬇ Spezialtermine exportieren</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+        <div style="font-size:11px;color:var(--text-muted)">
+          💡 <strong>So importierst du:</strong><br>
+          Outlook: Datei → Öffnen &amp; Exportieren → Importieren<br>
+          Google Calendar: Einstellungen → Importieren<br>
+          Apple Calendar: Datei → Importieren
+        </div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="dialog-btn secondary" onclick="document.getElementById('icsDialog').style.display='none'">Schließen</button>
     </div>
   </div>
 </div>
@@ -2222,6 +2265,107 @@ function deleteSpecialEvent(id) {
   closeSidebar();
   render();
   if (view === 'kontext') renderKontext();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ICS EXPORT
+// ══════════════════════════════════════════════════════════════════════════
+
+function toICSDate(dateStr, timeStr) {
+  // dateStr = 'YYYY-MM-DD', timeStr = 'HH:MM'
+  const d = dateStr.replace(/-/g, '');
+  if (!timeStr) return d;
+  const t = timeStr.replace(':', '') + '00';
+  return d + 'T' + t;
+}
+
+function escapeICS(str) {
+  if (!str) return '';
+  return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n').replace(/\r/g, '');
+}
+
+function generateVEVENT(uid, summary, dtstart, dtend, description, location) {
+  return [
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART:${dtstart}`,
+    `DTEND:${dtend}`,
+    `SUMMARY:${escapeICS(summary)}`,
+    description ? `DESCRIPTION:${escapeICS(description)}` : '',
+    location ? `LOCATION:${escapeICS(location)}` : '',
+    `DTSTAMP:${toICSDate(toLocalISO(new Date()), new Date().toTimeString().slice(0,5))}`,
+    'END:VEVENT',
+  ].filter(Boolean).join('\r\n');
+}
+
+function wrapICS(events) {
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Kadenz-Planungstool//DE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+function downloadICS(content, filename) {
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportSpecialEventsICS() {
+  if (!SPECIAL_EVENTS.length) { alert('Keine Spezialtermine vorhanden.'); return; }
+  const vevents = SPECIAL_EVENTS.map(ev => {
+    const dtstart = toICSDate(ev.dateFrom, ev.timeFrom);
+    const dtend = toICSDate(ev.dateTo, ev.timeTo);
+    const desc = [ev.description, ev.location ? 'Ort: ' + ev.location : ''].filter(Boolean).join('\n');
+    return generateVEVENT(ev.id + '@kadenz', ev.name, dtstart, dtend, desc, ev.location);
+  });
+  downloadICS(wrapICS(vevents), 'Spezialtermine_Kadenz.ics');
+}
+
+function exportMeetingsICS(monthsAhead) {
+  // Berechne alle Meeting-Termine für die nächsten N Monate
+  const vevents = [];
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setMonth(endDate.getMonth() + (monthsAhead || 12));
+
+  // Iteriere jeden Tag im Zeitraum
+  const d = new Date(startDate < today ? startDate : today);
+  d.setHours(0, 0, 0, 0);
+  const seen = new Set();
+
+  while (d <= endDate) {
+    const meetings = getMeetingsForDate(new Date(d));
+    meetings.forEach(m => {
+      const ds = toLocalISO(d);
+      const uid = `${m.id}-${ds}@kadenz`;
+      if (seen.has(uid)) return;
+      seen.add(uid);
+      const dur = getEffectiveDuration(m);
+      const dtstart = toICSDate(ds, m.time);
+      // Berechne Endzeit
+      const [h, min] = m.time.split(':').map(Number);
+      const totalMin = h * 60 + min + dur;
+      const endH = String(Math.floor(totalMin / 60)).padStart(2, '0');
+      const endM = String(totalMin % 60).padStart(2, '0');
+      const dtend = toICSDate(ds, endH + ':' + endM);
+      const desc = [m.description, m.input ? 'Input: ' + m.input : '', m.output ? 'Output: ' + m.output : ''].filter(Boolean).join('\n');
+      vevents.push(generateVEVENT(uid, m.name, dtstart, dtend, desc, ''));
+    });
+    d.setDate(d.getDate() + 1);
+  }
+
+  if (!vevents.length) { alert('Keine Meetings im gewählten Zeitraum gefunden.'); return; }
+  downloadICS(wrapICS(vevents), `Kadenz_Meetings_${monthsAhead || 12}Monate.ics`);
 }
 
 function renderYear() {
