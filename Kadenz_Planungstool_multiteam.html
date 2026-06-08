@@ -1242,6 +1242,15 @@ function getMeetingsForDate(date, teamId = null){
         }
         break;
       }
+      case 'everyNweeks':{
+        const n = m.weekInterval || 2;
+        if(m.startDate && m.weekDay){
+          show = (weekDay===m.weekDay && ((weeksSinceAnchor%n)+n)%n===0);
+        } else {
+          show = (((weeksSince%n)+n)%n===0 && weekDay===(m.weekDay||weekDay));
+        }
+        break;
+      }
       case 'monthly':{
         if(m.startDate && m.weekDay){
           // Same weekday, every 4 weeks from anchor ≈ monthly on that weekday
@@ -1706,6 +1715,23 @@ function nmfRhythmChanged() {
       `<button type="button" class="dpill" data-val="${val}" onclick="this.classList.toggle('sel')">${label}</button>`
     ).join('');
     extraWrap.innerHTML = `<div class="nmf-label">Wochentage (Mehrfachauswahl)</div><div class="dpicker" id="nmf-weekday-pills">${pills}</div>`;
+  } else if (rhythm === 'everyNweeks') {
+    wdWrap.style.display = 'none';
+    extraWrap.style.display = '';
+    const opts = [2,3,4,5,6,7,8,9,10,11,12].map(n =>
+      `<option value="${n}"${n===2?' selected':''}>Alle ${n} Wochen</option>`).join('');
+    const dpills = dayLabels.map(({label,val}) =>
+      `<button type="button" class="dpill" data-val="${val}" onclick="this.classList.toggle('sel')">${label}</button>`
+    ).join('');
+    extraWrap.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="nmf-label">Intervall</div>
+          <select class="fselect" id="nmf-weekinterval" style="background:white">${opts}</select>
+        </div>
+        <div><div class="nmf-label">Wochentag</div>
+          <div class="dpicker" id="nmf-everyN-pills">${dpills}</div>
+        </div>
+      </div>`;
   } else if (rhythm === 'monthly-nth') {
     wdWrap.style.display = '';
     extraWrap.style.display = '';
@@ -1730,7 +1756,7 @@ function addNewMeeting() {
   const rhythm = document.getElementById('nmf-rhythm').value;
 
   // Collect rhythm-specific fields
-  let startDate = null, endDate = null, seriesEnd = null, weekDay = null, weekDays = null, monthWeek = null;
+  let startDate = null, endDate = null, seriesEnd = null, weekDay = null, weekDays = null, monthWeek = null, weekInterval = null;
   if (rhythm === 'einmalig') {
     startDate = document.getElementById('nmf-startdate')?.value || null;
     endDate = document.getElementById('nmf-enddate')?.value || null;
@@ -1743,6 +1769,10 @@ function addNewMeeting() {
       const pills = document.querySelectorAll('#nmf-weekday-pills .dpill.sel');
       weekDays = Array.from(pills).map(b => parseInt(b.dataset.val));
       if (!weekDays.length) { alert('Bitte mindestens einen Wochentag wählen.'); return; }
+    } else if (rhythm === 'everyNweeks') {
+      weekInterval = parseInt(document.getElementById('nmf-weekinterval')?.value) || 2;
+      const pill = document.querySelector('#nmf-everyN-pills .dpill.sel');
+      weekDay = pill ? parseInt(pill.dataset.val) : null;
     } else if (rhythm === 'monthly-nth') {
       weekDay = parseInt(document.getElementById('nmf-weekday').value) || 1;
       monthWeek = parseInt(document.getElementById('nmf-monthweek')?.value) || 1;
@@ -1766,6 +1796,7 @@ function addNewMeeting() {
     endDate,
     seriesEnd,
     monthWeek,
+    weekInterval,
     description: document.getElementById('nmf-desc').value.trim(),
     input: '',
     output: '',
@@ -1873,10 +1904,11 @@ function renderStammdaten() {
               <option value="einmalig">Einmalig (Einzeltermin / Block)</option>
               <option value="daily">Täglich</option>
               <option value="weekly">Wöchentlich (ein oder mehrere Tage)</option>
+              <option value="everyNweeks">Alle X Wochen (2, 3, 5, 7 … 12)</option>
               <option value="sprint-start">Sprint-Start</option>
               <option value="sprint-end" selected>Sprint-Ende</option>
-              <option value="every4weeks">Alle 4 Wochen</option>
-              <option value="every6weeks">Alle 6 Wochen</option>
+              <option value="every4weeks">Alle 4 Wochen (Legacy)</option>
+              <option value="every6weeks">Alle 6 Wochen (Legacy)</option>
               <option value="monthly">Monatlich (gleiche Woche)</option>
               <option value="monthly-nth">Monatlich — 1./2./3./4. Woche</option>
               <option value="quarterly">Quartalsweise</option>
@@ -2029,7 +2061,9 @@ function renderStammdatenTable() {
           td.innerHTML = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:${flColors[m.fl]+'22'};color:${flColors[m.fl]}">${m.flLabel||m.fl.toUpperCase()}</span>`;
           break;
         case 'rhythm': {
-          let rtxt = rhythmLabel[m.rhythm] || m.rhythm;
+          let rtxt = m.rhythm === 'everyNweeks'
+            ? `Alle ${m.weekInterval||2} Wochen`
+            : (rhythmLabel[m.rhythm] || m.rhythm);
           if (m.seriesEnd) rtxt += `<br><span style="font-size:9px;color:var(--text-muted)">bis ${fmtDate(m.seriesEnd)}</span>`;
           td.innerHTML = rtxt;
           break;
@@ -2242,7 +2276,7 @@ function parseWeekDay(str) {
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────
 function exportMeetingsExcel() {
-  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich','monthly-nth':'Monatlich (n. Woche)',quarterly:'Quartalsweise'};
+  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich',everyNweeks:'Alle X Wochen','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich','monthly-nth':'Monatlich (n. Woche)',quarterly:'Quartalsweise'};
   const dayLabel = {1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
 
   const rows = MEETINGS.map(m => ({
@@ -3412,7 +3446,7 @@ function openSidebar(m,date,conflict){
 
       <div class="fsec"><div class="flbl">Rhythmus</div>
         <select class="fselect" id="rhythm-sel-${m.id}" onchange="applyRhythm('${m.id}',this.value);renderRhythmExtra('${m.id}')">
-          ${['einmalig','daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','monthly-nth','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{einmalig:'Einmalig (Einzeltermin / Block)',daily:'Täglich',weekly:'Wöchentlich (ein oder mehrere Tage)','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich (gleiche Woche)','monthly-nth':'Monatlich — 1./2./3./4. Woche',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
+          ${['einmalig','daily','weekly','everyNweeks','sprint-start','sprint-end','every4weeks','every6weeks','monthly','monthly-nth','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{einmalig:'Einmalig (Einzeltermin / Block)',daily:'Täglich',weekly:'Wöchentlich (ein oder mehrere Tage)',everyNweeks:'Alle X Wochen (2–12)','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen (Legacy)',every6weeks:'Alle 6 Wochen (Legacy)',monthly:'Monatlich (gleiche Woche)','monthly-nth':'Monatlich — 1./2./3./4. Woche',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
         </select>
         <div id="rhythm-extra-${m.id}" style="margin-top:8px"></div>
       </div>
@@ -3669,6 +3703,21 @@ function renderRhythmExtra(id) {
       <div class="fsub" style="margin-bottom:4px">Wochentage (Mehrfachauswahl)</div>
       <div class="dpicker">${pills}</div>
       <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Mehrere Tage wählbar, z.B. Mo + Mi</div>`;
+  } else if (rhythm === 'everyNweeks') {
+    const cur = m.weekInterval || 2;
+    const opts = [2,3,4,5,6,7,8,9,10,11,12].map(n =>
+      `<option value="${n}"${cur===n?' selected':''}>Alle ${n} Wochen</option>`).join('');
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end">
+        <div><div class="fsub" style="margin-bottom:3px">Intervall</div>
+          <select class="fselect" onchange="applyField('${id}','weekInterval',parseInt(this.value));render()">${opts}</select>
+        </div>
+        <div><div class="fsub" style="margin-bottom:3px">Wochentag</div>
+          <div class="dpicker">${dayLabels.map(({label,val}) =>
+            `<button class="dpill${m.weekDay===val?' sel':''}" onclick="setWeekDay('${id}',${val},this)">${label}</button>`
+          ).join('')}<button class="dpill${m.weekDay===null?' sel':''}" onclick="setWeekDay('${id}',null,this)">–</button></div>
+        </div>
+      </div>`;
   } else if (rhythm === 'monthly-nth') {
     const weekOpts = [['1. Woche',1],['2. Woche',2],['3. Woche',3],['4. Woche',4]].map(
       ([lbl,val]) => `<option value="${val}"${m.monthWeek===val?' selected':''}>${lbl}</option>`).join('');
