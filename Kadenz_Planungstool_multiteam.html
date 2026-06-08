@@ -1273,6 +1273,8 @@ function getMeetingsForDate(date, teamId = null){
         break;
       }
     }
+    // Serienende: wenn gesetzt, Termin nach diesem Datum nicht mehr anzeigen
+    if (show && m.seriesEnd && toLocalISO(date) > m.seriesEnd) show = false;
     if(show)result.push(m);
   }
   // Team-Filter anwenden
@@ -1677,8 +1679,12 @@ function nmfRhythmChanged() {
   const rhythm = document.getElementById('nmf-rhythm').value;
   const wdWrap = document.getElementById('nmf-weekday-wrap');
   const extraWrap = document.getElementById('nmf-extra-wrap');
+  const seriesWrap = document.getElementById('nmf-series-wrap');
   const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
   if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+
+  // Serienzeile: bei einmalig ausblenden (hat eigene Von/Bis im extraWrap)
+  if (seriesWrap) seriesWrap.style.display = rhythm === 'einmalig' ? 'none' : '';
 
   if (rhythm === 'einmalig') {
     wdWrap.style.display = 'none';
@@ -1724,20 +1730,25 @@ function addNewMeeting() {
   const rhythm = document.getElementById('nmf-rhythm').value;
 
   // Collect rhythm-specific fields
-  let startDate = null, endDate = null, weekDay = null, weekDays = null, monthWeek = null;
+  let startDate = null, endDate = null, seriesEnd = null, weekDay = null, weekDays = null, monthWeek = null;
   if (rhythm === 'einmalig') {
     startDate = document.getElementById('nmf-startdate')?.value || null;
     endDate = document.getElementById('nmf-enddate')?.value || null;
     if (!startDate) { alert('Bitte ein Datum eingeben.'); return; }
-  } else if (rhythm === 'weekly') {
-    const pills = document.querySelectorAll('#nmf-weekday-pills .dpill.sel');
-    weekDays = Array.from(pills).map(b => parseInt(b.dataset.val));
-    if (!weekDays.length) { alert('Bitte mindestens einen Wochentag wählen.'); return; }
-  } else if (rhythm === 'monthly-nth') {
-    weekDay = parseInt(document.getElementById('nmf-weekday').value) || 1;
-    monthWeek = parseInt(document.getElementById('nmf-monthweek')?.value) || 1;
   } else {
-    weekDay = parseInt(document.getElementById('nmf-weekday').value) || null;
+    // Serienfelder für alle wiederkehrenden Rhythmen
+    startDate = document.getElementById('nmf-seriesstart')?.value || null;
+    seriesEnd = document.getElementById('nmf-seriesend')?.value || null;
+    if (rhythm === 'weekly') {
+      const pills = document.querySelectorAll('#nmf-weekday-pills .dpill.sel');
+      weekDays = Array.from(pills).map(b => parseInt(b.dataset.val));
+      if (!weekDays.length) { alert('Bitte mindestens einen Wochentag wählen.'); return; }
+    } else if (rhythm === 'monthly-nth') {
+      weekDay = parseInt(document.getElementById('nmf-weekday').value) || 1;
+      monthWeek = parseInt(document.getElementById('nmf-monthweek')?.value) || 1;
+    } else {
+      weekDay = parseInt(document.getElementById('nmf-weekday').value) || null;
+    }
   }
 
   const newMeeting = {
@@ -1753,6 +1764,7 @@ function addNewMeeting() {
     weekDays,
     startDate,
     endDate,
+    seriesEnd,
     monthWeek,
     description: document.getElementById('nmf-desc').value.trim(),
     input: '',
@@ -1885,6 +1897,21 @@ function renderStammdaten() {
             </select>
           </div>
           <div class="nmf-group" id="nmf-extra-wrap" style="display:none;grid-column:1/-1"></div>
+          <div class="nmf-group" id="nmf-series-wrap" style="grid-column:1/-1">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end">
+              <div><div class="nmf-label">Gültig ab</div>
+                <input class="finput" type="date" id="nmf-seriesstart" style="background:white;font-family:'IBM Plex Mono',monospace">
+                <div style="font-size:9px;color:var(--text-muted);margin-top:2px">Leer = ab Projektstart</div>
+              </div>
+              <div><div class="nmf-label">Serienende</div>
+                <input class="finput" type="date" id="nmf-seriesend" style="background:white;font-family:'IBM Plex Mono',monospace">
+                <div style="font-size:9px;color:var(--text-muted);margin-top:2px">Leer = kein Ende</div>
+              </div>
+              <div style="font-size:10px;color:var(--text-muted);padding-bottom:14px">
+                z.B. jeden Fr. 8:00 vom 1.6. bis 1.8.2026
+              </div>
+            </div>
+          </div>
           <div class="nmf-group"><div class="nmf-label">Organisator</div><input class="finput" id="nmf-org" placeholder="z.B. Scrum Master" style="background:white"></div>
           <div class="nmf-group" style="justify-content:flex-end;padding-bottom:2px">
             <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer">
@@ -2001,9 +2028,12 @@ function renderStammdatenTable() {
         case 'fl':
           td.innerHTML = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;background:${flColors[m.fl]+'22'};color:${flColors[m.fl]}">${m.flLabel||m.fl.toUpperCase()}</span>`;
           break;
-        case 'rhythm':
-          td.textContent = rhythmLabel[m.rhythm] || m.rhythm;
+        case 'rhythm': {
+          let rtxt = rhythmLabel[m.rhythm] || m.rhythm;
+          if (m.seriesEnd) rtxt += `<br><span style="font-size:9px;color:var(--text-muted)">bis ${fmtDate(m.seriesEnd)}</span>`;
+          td.innerHTML = rtxt;
           break;
+        }
         case 'durationMin':
           td.innerHTML = `<span style="font-family:'IBM Plex Mono',monospace">${fmtDur(effDur)}</span>${getScrumDuration(m.id,sprintLen)?'<br><span style="font-size:9px;color:var(--fl1)">⟳ sprint</span>':''}`;
           break;
@@ -3388,13 +3418,23 @@ function openSidebar(m,date,conflict){
       </div>
 
       <div class="fsec">
-        <div class="flbl">Gültig ab</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input class="finput" type="date" style="font-family:'IBM Plex Mono',monospace;width:150px" 
-                 value="${m.startDate||''}" 
-                 onchange="applyStartDate('${m.id}',this.value)"
-                 placeholder="Projektstart">
-          <span style="font-size:10px;color:var(--text-muted)">Leer = ab Projektstart</span>
+        <div class="flbl">Serienzeitraum</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div class="fsub" style="margin-bottom:3px">Gültig ab</div>
+            <input class="finput" type="date" style="font-family:'IBM Plex Mono',monospace"
+                   value="${m.startDate||''}"
+                   onchange="applyStartDate('${m.id}',this.value)"
+                   placeholder="Projektstart">
+            <div style="font-size:9px;color:var(--text-muted);margin-top:2px">Leer = ab Projektstart</div>
+          </div>
+          <div>
+            <div class="fsub" style="margin-bottom:3px">Serienende</div>
+            <input class="finput" type="date" style="font-family:'IBM Plex Mono',monospace"
+                   value="${m.seriesEnd||''}"
+                   onchange="applyField('${m.id}','seriesEnd',this.value||null);render()">
+            <div style="font-size:9px;color:var(--text-muted);margin-top:2px">Leer = kein Ende</div>
+          </div>
         </div>
       </div>
 
