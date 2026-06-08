@@ -1205,9 +1205,23 @@ function getMeetingsForDate(date, teamId = null){
     const weeksSinceAnchor = Math.floor((date - anchorDate) / (7*86400000));
     let show=false;
     switch(m.rhythm){
-      case 'einmalig': show = (m.startDate === toLocalISO(date)); break;
+      case 'einmalig': {
+        const ds = toLocalISO(date);
+        if (m.endDate && m.startDate) {
+          show = (ds >= m.startDate && ds <= m.endDate);
+        } else {
+          show = (m.startDate === ds);
+        }
+        break;
+      }
       case 'daily':show=true;break;
-      case 'weekly':show=weekDay===(m.weekDay||3);break;
+      case 'weekly':
+        if (m.weekDays && m.weekDays.length > 0) {
+          show = m.weekDays.includes(weekDay);
+        } else {
+          show = weekDay===(m.weekDay||3);
+        }
+        break;
       case 'sprint-start':show=(sw===1&&weekDay===(m.weekDay||1));break;
       case 'sprint-end':show=(sw===teamSprintLen&&weekDay===(m.weekDay||5));break;
       case 'every6weeks':{
@@ -1247,6 +1261,14 @@ function getMeetingsForDate(date, teamId = null){
           show=(weekDay===m.weekDay && ((weeksSinceAnchor%13)+13)%13===0);
         } else {
           if([0,3,6,9].includes(date.getMonth())){const fd=new Date(date.getFullYear(),date.getMonth(),1);let ft2=new Date(fd);while(ft2.getDay()!==1)ft2.setDate(ft2.getDate()+1);show=(date.toDateString()===ft2.toDateString());}
+        }
+        break;
+      }
+      case 'monthly-nth': {
+        // nth weekday of month (e.g. 2nd Monday = monthWeek:2, weekDay:1)
+        if (m.weekDay && m.monthWeek) {
+          const wom = Math.ceil(date.getDate() / 7);
+          show = (weekDay === m.weekDay && wom === m.monthWeek);
         }
         break;
       }
@@ -1651,12 +1673,72 @@ function toggleAddForm() {
 
 }
 
+function nmfRhythmChanged() {
+  const rhythm = document.getElementById('nmf-rhythm').value;
+  const wdWrap = document.getElementById('nmf-weekday-wrap');
+  const extraWrap = document.getElementById('nmf-extra-wrap');
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+
+  if (rhythm === 'einmalig') {
+    wdWrap.style.display = 'none';
+    extraWrap.style.display = '';
+    extraWrap.innerHTML = `
+      <div class="nmf-label">Datum</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Von (Pflicht)</div>
+          <input class="finput" type="date" id="nmf-startdate" style="background:white;font-family:'IBM Plex Mono',monospace">
+        </div>
+        <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Bis (optional, für Blocks)</div>
+          <input class="finput" type="date" id="nmf-enddate" style="background:white;font-family:'IBM Plex Mono',monospace" placeholder="leer = einmalig">
+        </div>
+      </div>`;
+  } else if (rhythm === 'weekly') {
+    wdWrap.style.display = 'none';
+    extraWrap.style.display = '';
+    const pills = dayLabels.map(({label,val}) =>
+      `<button type="button" class="dpill" data-val="${val}" onclick="this.classList.toggle('sel')">${label}</button>`
+    ).join('');
+    extraWrap.innerHTML = `<div class="nmf-label">Wochentage (Mehrfachauswahl)</div><div class="dpicker" id="nmf-weekday-pills">${pills}</div>`;
+  } else if (rhythm === 'monthly-nth') {
+    wdWrap.style.display = '';
+    extraWrap.style.display = '';
+    extraWrap.innerHTML = `<div class="nmf-label">Woche im Monat</div>
+      <select class="fselect" id="nmf-monthweek" style="background:white">
+        <option value="1">1. Woche</option><option value="2">2. Woche</option>
+        <option value="3">3. Woche</option><option value="4">4. Woche</option>
+      </select>`;
+  } else {
+    wdWrap.style.display = '';
+    extraWrap.style.display = 'none';
+    extraWrap.innerHTML = '';
+  }
+}
+
 function addNewMeeting() {
   const name = document.getElementById('nmf-name').value.trim();
   if (!name) { alert('Bitte einen Meeting-Namen eingeben.'); return; }
   const fl = document.getElementById('nmf-fl').value;
   const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
   const id = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,30) + '-' + Date.now().toString(36);
+  const rhythm = document.getElementById('nmf-rhythm').value;
+
+  // Collect rhythm-specific fields
+  let startDate = null, endDate = null, weekDay = null, weekDays = null, monthWeek = null;
+  if (rhythm === 'einmalig') {
+    startDate = document.getElementById('nmf-startdate')?.value || null;
+    endDate = document.getElementById('nmf-enddate')?.value || null;
+    if (!startDate) { alert('Bitte ein Datum eingeben.'); return; }
+  } else if (rhythm === 'weekly') {
+    const pills = document.querySelectorAll('#nmf-weekday-pills .dpill.sel');
+    weekDays = Array.from(pills).map(b => parseInt(b.dataset.val));
+    if (!weekDays.length) { alert('Bitte mindestens einen Wochentag wählen.'); return; }
+  } else if (rhythm === 'monthly-nth') {
+    weekDay = parseInt(document.getElementById('nmf-weekday').value) || 1;
+    monthWeek = parseInt(document.getElementById('nmf-monthweek')?.value) || 1;
+  } else {
+    weekDay = parseInt(document.getElementById('nmf-weekday').value) || null;
+  }
 
   const newMeeting = {
     id,
@@ -1665,9 +1747,13 @@ function addNewMeeting() {
     fl,
     flLabel: flLabels[fl] || fl.toUpperCase(),
     durationMin: parseInt(document.getElementById('nmf-duration').value) || 60,
-    rhythm: document.getElementById('nmf-rhythm').value,
+    rhythm,
     time: document.getElementById('nmf-time').value || '09:00',
-    weekDay: parseInt(document.getElementById('nmf-weekday').value) || null,
+    weekDay,
+    weekDays,
+    startDate,
+    endDate,
+    monthWeek,
     description: document.getElementById('nmf-desc').value.trim(),
     input: '',
     output: '',
@@ -1771,15 +1857,16 @@ function renderStammdaten() {
         </div>
         <div class="nmf-grid">
           <div class="nmf-group"><div class="nmf-label">Rhythmus</div>
-            <select class="fselect" id="nmf-rhythm" style="background:white">
-              <option value="einmalig">Einmalig</option>
+            <select class="fselect" id="nmf-rhythm" style="background:white" onchange="nmfRhythmChanged()">
+              <option value="einmalig">Einmalig (Einzeltermin / Block)</option>
               <option value="daily">Täglich</option>
-              <option value="weekly">Wöchentlich</option>
+              <option value="weekly">Wöchentlich (ein oder mehrere Tage)</option>
               <option value="sprint-start">Sprint-Start</option>
               <option value="sprint-end" selected>Sprint-Ende</option>
               <option value="every4weeks">Alle 4 Wochen</option>
               <option value="every6weeks">Alle 6 Wochen</option>
-              <option value="monthly">Monatlich</option>
+              <option value="monthly">Monatlich (gleiche Woche)</option>
+              <option value="monthly-nth">Monatlich — 1./2./3./4. Woche</option>
               <option value="quarterly">Quartalsweise</option>
             </select>
           </div>
@@ -1787,7 +1874,7 @@ function renderStammdaten() {
           <div class="nmf-group"><div class="nmf-label">Uhrzeit</div><input class="finput" id="nmf-time" type="time" value="09:00" step="900" style="background:white"></div>
         </div>
         <div class="nmf-grid">
-          <div class="nmf-group"><div class="nmf-label">Wochentag</div>
+          <div class="nmf-group" id="nmf-weekday-wrap"><div class="nmf-label">Wochentag</div>
             <select class="fselect" id="nmf-weekday" style="background:white">
               <option value="">— Kein fester Tag —</option>
               <option value="1">Montag</option>
@@ -1797,6 +1884,7 @@ function renderStammdaten() {
               <option value="5">Freitag</option>
             </select>
           </div>
+          <div class="nmf-group" id="nmf-extra-wrap" style="display:none;grid-column:1/-1"></div>
           <div class="nmf-group"><div class="nmf-label">Organisator</div><input class="finput" id="nmf-org" placeholder="z.B. Scrum Master" style="background:white"></div>
           <div class="nmf-group" style="justify-content:flex-end;padding-bottom:2px">
             <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer">
@@ -1894,7 +1982,7 @@ function renderStammdatenTable() {
 
   // Body
   const tbody = document.createElement('tbody');
-  const rhythmLabel = {daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'4-wöchentlich',every6weeks:'6-wöchentlich',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'4-wöchentlich',every6weeks:'6-wöchentlich',monthly:'Monatlich','monthly-nth':'Monatlich (n. Woche)',quarterly:'Quartalsweise'};
   const flColors = {fl1:'var(--fl1)',fl2:'var(--fl2)',fl3:'var(--fl3)',lernen:'var(--lernen)',alle:'var(--alle)'};
 
   data.forEach(m => {
@@ -2124,7 +2212,7 @@ function parseWeekDay(str) {
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────
 function exportMeetingsExcel() {
-  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmLabel = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich','monthly-nth':'Monatlich (n. Woche)',quarterly:'Quartalsweise'};
   const dayLabel = {1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
 
   const rows = MEETINGS.map(m => ({
@@ -3293,9 +3381,10 @@ function openSidebar(m,date,conflict){
       <div class="fsec"><div class="flbl">Wochentag</div><div class="dpicker">${dayOpts}</div></div>
 
       <div class="fsec"><div class="flbl">Rhythmus</div>
-        <select class="fselect" onchange="applyRhythm('${m.id}',this.value)">
-          ${['daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
+        <select class="fselect" id="rhythm-sel-${m.id}" onchange="applyRhythm('${m.id}',this.value);renderRhythmExtra('${m.id}')">
+          ${['einmalig','daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','monthly-nth','quarterly'].map(r=>`<option value="${r}"${m.rhythm===r?' selected':''}>${{einmalig:'Einmalig (Einzeltermin / Block)',daily:'Täglich',weekly:'Wöchentlich (ein oder mehrere Tage)','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich (gleiche Woche)','monthly-nth':'Monatlich — 1./2./3./4. Woche',quarterly:'Quartalsweise'}[r]}</option>`).join('')}
         </select>
+        <div id="rhythm-extra-${m.id}" style="margin-top:8px"></div>
       </div>
 
       <div class="fsec">
@@ -3340,7 +3429,7 @@ function openSidebar(m,date,conflict){
       </div>
       ${buildChecklistHtml(m.id)}
     </div>`;
-  setTimeout(() => buildSidebarDynamic(m), 0);
+  setTimeout(() => { buildSidebarDynamic(m); renderRhythmExtra(m.id); }, 0);
 }
 
 
@@ -3492,6 +3581,78 @@ function toggleMeetingTeam(id, teamId, checked) {
 
 function closeSidebar(){document.getElementById('sbEmpty').style.display='flex';document.getElementById('sbContent').style.display='none';}
 function setWeekDay(id,wd,btn){const m=MEETINGS.find(x=>x.id===id);if(!m)return;m.weekDay=wd;btn.closest('.dpicker').querySelectorAll('.dpill').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');render();}
+
+// Toggle a weekday in the weekDays[] array (for weekly multi-day)
+function toggleWeekDay(id, wd, btn) {
+  const m = MEETINGS.find(x => x.id === id);
+  if (!m) return;
+  if (!m.weekDays) m.weekDays = m.weekDay ? [m.weekDay] : [];
+  const idx = m.weekDays.indexOf(wd);
+  if (idx >= 0) {
+    m.weekDays.splice(idx, 1);
+    btn.classList.remove('sel');
+  } else {
+    m.weekDays.push(wd);
+    btn.classList.add('sel');
+  }
+  render();
+}
+
+// Render dynamic extra fields in sidebar based on rhythm
+function renderRhythmExtra(id) {
+  const m = MEETINGS.find(x => x.id === id);
+  const el = document.getElementById('rhythm-extra-' + id);
+  if (!m || !el) return;
+  const rhythm = m.rhythm;
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+
+  if (rhythm === 'einmalig') {
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="fsub" style="margin-bottom:3px">Datum (von)</div>
+          <input class="finput" type="date" style="font-family:'IBM Plex Mono',monospace" value="${m.startDate||''}"
+                 onchange="applyField('${id}','startDate',this.value);render()">
+        </div>
+        <div><div class="fsub" style="margin-bottom:3px">Bis Datum (Block)</div>
+          <input class="finput" type="date" style="font-family:'IBM Plex Mono',monospace" value="${m.endDate||''}"
+                 placeholder="leer = einmalig" onchange="applyField('${id}','endDate',this.value||null);render()">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Leer lassen wenn nur ein Tag. Bei Block-Terminen (z.B. Workshop) erscheint das Meeting täglich im gewählten Zeitraum.</div>`;
+  } else if (rhythm === 'weekly') {
+    const days = m.weekDays || (m.weekDay ? [m.weekDay] : []);
+    const pills = dayLabels.map(({label,val}) =>
+      `<button class="dpill${days.includes(val)?' sel':''}" onclick="toggleWeekDay('${id}',${val},this)">${label}</button>`
+    ).join('');
+    el.innerHTML = `
+      <div class="fsub" style="margin-bottom:4px">Wochentage (Mehrfachauswahl)</div>
+      <div class="dpicker">${pills}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Mehrere Tage wählbar, z.B. Mo + Mi</div>`;
+  } else if (rhythm === 'monthly-nth') {
+    const weekOpts = [['1. Woche',1],['2. Woche',2],['3. Woche',3],['4. Woche',4]].map(
+      ([lbl,val]) => `<option value="${val}"${m.monthWeek===val?' selected':''}>${lbl}</option>`).join('');
+    const dayOpts = dayLabels.map(({label,val}) =>
+      `<option value="${val}"${m.weekDay===val?' selected':''}>${label}</option>`).join('');
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="fsub" style="margin-bottom:3px">Wochentag</div>
+          <select class="fselect" onchange="applyField('${id}','weekDay',parseInt(this.value));render()">
+            ${dayOpts}
+          </select>
+        </div>
+        <div><div class="fsub" style="margin-bottom:3px">Woche im Monat</div>
+          <select class="fselect" onchange="applyField('${id}','monthWeek',parseInt(this.value));render()">
+            ${weekOpts}
+          </select>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">z.B. jeden 2. Montag im Monat</div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
 
 
 let draftMeeting = null; // holds a meeting being created, not yet committed
@@ -3841,6 +4002,7 @@ function applyTime(id,val){const m=MEETINGS.find(x=>x.id===id);if(!m)return;m.ti
 function applyDuration(id,val){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const mins=Math.max(15,Math.round(parseInt(val)/15)*15)||15;m.durationMin=mins;m.durationOverride=true;const inp=document.getElementById(`dur-${id}`);if(inp)inp.value=mins;updateDurCalc(m);render();}
 function updateDurCalc(m){const el=document.getElementById(`durcalc-${m.id}`);const d=getEffectiveDuration(m);if(el)el.textContent=`= ${fmtDur(d)} · Ende: ${endTime(m.time,d)}`;}
 function applyRhythm(id,val){const m=MEETINGS.find(x=>x.id===id);if(m){m.rhythm=val;render();}}
+
 function togAcc(hdr){const b=hdr.nextElementSibling;const a=hdr.querySelector('span:last-child');b.classList.toggle('open');a.textContent=b.classList.contains('open')?'▾':'▸';}
 
 // ══════════════════════════════════════════════════════════════════════════
