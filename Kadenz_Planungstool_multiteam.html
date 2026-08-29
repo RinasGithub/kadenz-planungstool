@@ -560,7 +560,9 @@
         <div class="bl-dropdown-actions">
           <button id="blActAll" onclick="setBLMode('all')">Alle Bundesländer</button>
           <button id="blActNone" onclick="setBLMode('none')">Keine Ferien</button>
+          <button onclick="refreshFerienCache()" title="Feriendaten neu von API laden" style="margin-left:auto">↺ Aktualisieren</button>
         </div>
+        <div id="blApiHint" style="font-size:9px;color:var(--text-muted);margin-bottom:6px"></div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;" id="blTbGrid"></div>
       </div>
     </div>
@@ -988,10 +990,80 @@ const SCHULFERIEN = [
   {bl:'TH',name:'Sommerferien',from:'2028-06-29',to:'2028-08-10'},
 ];
 
+// ── Ferien-API (openholidaysapi.org) ──────────────────────────────────────
+const FERIEN_API_BASE = 'https://openholidaysapi.org/SchoolHolidays';
+const FERIEN_CACHE_KEY = 'kadenz_ferien_v2';
+const FERIEN_CACHE_TTL = 30 * 24 * 3600 * 1000; // 30 Tage
+let dynamicFerien = null; // null = noch nicht geladen, Array = geladen
+let ferienApiStatus = 'idle'; // 'idle'|'loading'|'ok'|'offline'
+
+async function loadFerienFromAPI() {
+  // 1. Cache prüfen
+  try {
+    const cached = JSON.parse(localStorage.getItem(FERIEN_CACHE_KEY) || 'null');
+    if (cached && (Date.now() - cached.ts) < FERIEN_CACHE_TTL && cached.data?.length) {
+      dynamicFerien = cached.data;
+      ferienApiStatus = 'ok';
+      updateFerienStatus();
+      render();
+      return;
+    }
+  } catch(e) {}
+
+  // 2. API abrufen: aktuelles + nächste 2 Jahre, alle BL ohne Subdivision-Filter
+  ferienApiStatus = 'loading';
+  updateFerienStatus();
+  const thisYear = new Date().getFullYear();
+  const years = [thisYear - 1, thisYear, thisYear + 1, thisYear + 2];
+  const allEntries = [];
+  try {
+    await Promise.all(years.map(async yr => {
+      const url = `${FERIEN_API_BASE}?countryIsoCode=DE&languageIsoCode=DE&validFrom=${yr}-01-01&validTo=${yr}-12-31`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('API ' + res.status);
+      const data = await res.json();
+      allEntries.push(...data);
+    }));
+    // API-Format → internes Format konvertieren
+    dynamicFerien = allEntries.flatMap(e => {
+      const bl = e.subdivisions?.[0]?.shortName;
+      if (!bl || !BL_ALL.includes(bl)) return [];
+      return [{ bl, name: e.name?.[0]?.text || 'Ferien', from: e.startDate, to: e.endDate }];
+    });
+    localStorage.setItem(FERIEN_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: dynamicFerien }));
+    ferienApiStatus = 'ok';
+  } catch(err) {
+    console.warn('Ferien-API nicht erreichbar, nutze eingebaute Daten:', err.message);
+    ferienApiStatus = 'offline';
+    dynamicFerien = null; // fallback auf SCHULFERIEN
+  }
+  updateFerienStatus();
+  render();
+}
+
+function updateFerienStatus() {
+  const el = document.getElementById('blDropLabel');
+  if (!el) return;
+  if (ferienApiStatus === 'loading') {
+    el.textContent = 'Ferien lädt…';
+  } else {
+    // Beschriftung wird von updateBLUI gesetzt — nur kurzer Hinweis
+    if (ferienApiStatus === 'offline') {
+      const btn = document.getElementById('blDropBtn');
+      if (btn) btn.title = 'Ferien-API nicht erreichbar — eingebaute Daten werden verwendet';
+    }
+    updateBLUI();
+  }
+}
+
+function ferienSource() {
+  return dynamicFerien ?? SCHULFERIEN;
+}
+
 function getFerienForDate(date, activeBL) {
   if (activeBL === null) return []; // "Keine Ferien" gewählt
   const ds = toLocalISO(date);
-  return SCHULFERIEN.filter(f => {
+  return ferienSource().filter(f => {
     if(activeBL.length>0 && !activeBL.includes(f.bl)) return false;
     return ds >= f.from && ds <= f.to;
   });
@@ -1209,6 +1281,21 @@ function initBLDropdown() {
   const grid = document.getElementById('blTbGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  // API-Hinweis
+  const hint = document.getElementById('blApiHint');
+  if (hint) {
+    if (ferienApiStatus === 'loading') {
+      hint.textContent = '⏳ Feriendaten werden geladen…';
+    } else if (ferienApiStatus === 'ok') {
+      try {
+        const cached = JSON.parse(localStorage.getItem(FERIEN_CACHE_KEY) || 'null');
+        const ago = cached ? new Date(cached.ts).toLocaleDateString('de-DE') : '–';
+        hint.textContent = `✅ Quelle: openholidaysapi.org · ${dynamicFerien?.length||0} Einträge · Stand: ${ago}`;
+      } catch(e) { hint.textContent = '✅ Quelle: openholidaysapi.org'; }
+    } else {
+      hint.textContent = '⚠ API nicht erreichbar — eingebaute Daten (2026–2028)';
+    }
+  }
   BL_ALL.forEach(bl => {
     const btn = document.createElement('button');
     btn.className = 'bl-tb-pill' + (Array.isArray(activeBL) && activeBL.includes(bl) ? ' sel' : '');
@@ -1247,6 +1334,12 @@ function setBLMode(mode) {
   if (mode === 'all') activeBL = [];
   else if (mode === 'none') activeBL = null;
   initBLDropdown(); render();
+}
+
+function refreshFerienCache() {
+  localStorage.removeItem(FERIEN_CACHE_KEY);
+  dynamicFerien = null;
+  loadFerienFromAPI();
 }
 
 function updateBLUI() {
@@ -4470,6 +4563,8 @@ document.getElementById('startDate').value = toLocalISO(startDate);
 renderProfileBar();
 render();
 initTemplateDialog();
+// Ferien asynchron aus API laden (mit localStorage-Cache)
+loadFerienFromAPI();
 </script>
 </body>
 </html>
