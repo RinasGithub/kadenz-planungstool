@@ -159,12 +159,25 @@
   .kx-section-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
   .kx-body{padding:14px 16px;}
 
-  /* Bundesland multi-select */
+  /* Bundesland multi-select (Kontext-Tab) */
   .bl-grid{display:flex;flex-wrap:wrap;gap:6px;}
   .bl-pill{padding:4px 10px;border-radius:16px;font-size:11px;font-weight:500;border:1.5px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
   .bl-pill:hover{border-color:var(--border-strong);}
   .bl-pill.sel{background:var(--alle-light);color:var(--alle);border-color:var(--alle);}
   .bl-hint{font-size:10px;color:var(--text-muted);margin-top:8px;}
+
+  /* BL Toolbar Dropdown */
+  .bl-dropdown-wrap{position:relative;display:inline-block;}
+  .bl-dropdown-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;white-space:nowrap;}
+  .bl-dropdown-btn.active{border-color:var(--alle);color:var(--alle);background:var(--alle-light);}
+  .bl-dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;min-width:320px;}
+  .bl-dropdown-panel.open{display:block;}
+  .bl-dropdown-actions{display:flex;gap:6px;margin-bottom:8px;}
+  .bl-dropdown-actions button{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;}
+  .bl-dropdown-actions button.active{background:var(--alle);color:#fff;border-color:var(--alle);}
+  .bl-tb-pill{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:500;border:1.5px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;transition:all .15s;}
+  .bl-tb-pill:hover{border-color:var(--border-strong);}
+  .bl-tb-pill.sel{background:var(--alle-light);color:var(--alle);border-color:var(--alle);}
 
   /* Ferienzeiten display */
   .ferien-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
@@ -539,6 +552,18 @@
     <button class="fbtn" data-fl="lernen" onclick="toggleFilter('lernen')"><span class="dot" style="background:var(--lernen)"></span>Lernen</button>
     <button class="fbtn" data-fl="alle" onclick="toggleFilter('alle')"><span class="dot" style="background:var(--alle)"></span>Alle</button>
     <button class="fbtn" onclick="clearFilters()" id="clearFilterBtn" style="display:none;border-color:var(--border-strong)">✕ Filter</button>
+    <div class="bl-dropdown-wrap" id="blDropWrap">
+      <button class="bl-dropdown-btn" id="blDropBtn" onclick="toggleBLDropdown()" title="Schulferien nach Bundesland filtern">
+        ☀ <span id="blDropLabel">Ferien: alle BL</span> ▾
+      </button>
+      <div class="bl-dropdown-panel" id="blDropPanel">
+        <div class="bl-dropdown-actions">
+          <button id="blActAll" onclick="setBLMode('all')">Alle Bundesländer</button>
+          <button id="blActNone" onclick="setBLMode('none')">Keine Ferien</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;" id="blTbGrid"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -817,7 +842,7 @@ const SCHULFERIEN = [
   {bl:'HE',name:'Pfingstferien',from:'2026-05-26',to:'2026-05-29'},
   {bl:'HE',name:'Sommerferien',from:'2026-07-06',to:'2026-08-14'},
   {bl:'HE',name:'Herbstferien',from:'2026-10-05',to:'2026-10-16'},
-  {bl:'HE',name:'Weihnachtsferien',from:'2026-12-22',to:'2027-01-09'},
+  {bl:'HE',name:'Weihnachtsferien',from:'2026-12-22',to:'2027-01-12'},
   // Mecklenburg-Vorpommern
   {bl:'MV',name:'Winterferien',from:'2026-02-09',to:'2026-02-20'},
   {bl:'MV',name:'Osterferien',from:'2026-03-30',to:'2026-04-11'},
@@ -964,6 +989,7 @@ const SCHULFERIEN = [
 ];
 
 function getFerienForDate(date, activeBL) {
+  if (activeBL === null) return []; // "Keine Ferien" gewählt
   const ds = toLocalISO(date);
   return SCHULFERIEN.filter(f => {
     if(activeBL.length>0 && !activeBL.includes(f.bl)) return false;
@@ -1079,7 +1105,7 @@ let currentDate=new Date(startDate);
 let sprintLen=2;
 let showWeekends = false; // Wochenenden (Sa/So) in Kalender anzeigen
 let activeFilters=new Set();
-let activeBL=[]; // selected Bundesländer — empty = show all
+let activeBL=[]; // selected Bundesländer — []=alle, null=keine, ['HE',...]=spezifisch
 let activeMeetingIds=null; // null=all, []=none
 let milestones=[]; // {id,date,name,type:'hard'|'soft'|'milestone'|'betrieb',endDate?}
 let betriebsurlaub=[]; // {id,from,to,label}
@@ -1177,7 +1203,84 @@ function toggleWeekends() {
   render();
 }
 function clearFilters(){activeFilters.clear();updateFilterUI();render();}
-function updateFilterUI(){document.querySelectorAll('.fbtn[data-fl]').forEach(b=>{const fl=b.dataset.fl;b.className='fbtn'+(activeFilters.has(fl)?` a-${fl}`:'');});document.getElementById('clearFilterBtn').style.display=activeFilters.size?'flex':'none';}
+
+// ── BL-Toolbar-Dropdown ────────────────────────────────────────────────────
+function initBLDropdown() {
+  const grid = document.getElementById('blTbGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  BL_ALL.forEach(bl => {
+    const btn = document.createElement('button');
+    btn.className = 'bl-tb-pill' + (Array.isArray(activeBL) && activeBL.includes(bl) ? ' sel' : '');
+    btn.textContent = BL_NAMES[bl];
+    btn.onclick = () => {
+      if (activeBL === null) activeBL = [];      // aus "keine" → spezifisch
+      if (activeBL.length === 0) activeBL = [...BL_ALL]; // aus "alle" → alle selektiert
+      if (activeBL.includes(bl)) activeBL = activeBL.filter(b => b !== bl);
+      else activeBL.push(bl);
+      updateBLUI(); render();
+    };
+    grid.appendChild(btn);
+  });
+  updateBLUI();
+}
+
+function toggleBLDropdown() {
+  const panel = document.getElementById('blDropPanel');
+  if (!panel) return;
+  const isOpen = panel.classList.toggle('open');
+  if (isOpen) initBLDropdown();
+  // Klick außerhalb schließt
+  if (isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function closeBL(e) {
+        if (!document.getElementById('blDropWrap')?.contains(e.target)) {
+          panel.classList.remove('open');
+          document.removeEventListener('click', closeBL);
+        }
+      });
+    }, 10);
+  }
+}
+
+function setBLMode(mode) {
+  if (mode === 'all') activeBL = [];
+  else if (mode === 'none') activeBL = null;
+  initBLDropdown(); render();
+}
+
+function updateBLUI() {
+  const btn = document.getElementById('blDropBtn');
+  const actAll = document.getElementById('blActAll');
+  const actNone = document.getElementById('blActNone');
+  const grid = document.getElementById('blTbGrid');
+  if (!btn) return;
+  if (activeBL === null) {
+    btn.className = 'bl-dropdown-btn';
+    btn.querySelector('#blDropLabel').textContent = 'Ferien: aus';
+    if (actNone) actNone.style.background = 'var(--alle)';
+    if (actNone) actNone.style.color = '#fff';
+    if (actAll) { actAll.style.background=''; actAll.style.color=''; }
+  } else if (activeBL.length === 0) {
+    btn.className = 'bl-dropdown-btn active';
+    btn.querySelector('#blDropLabel').textContent = 'Ferien: alle BL';
+    if (actAll) { actAll.style.background='var(--alle)'; actAll.style.color='#fff'; }
+    if (actNone) { actNone.style.background=''; actNone.style.color=''; }
+  } else {
+    btn.className = 'bl-dropdown-btn active';
+    const labels = activeBL.map(b => b).join(', ');
+    btn.querySelector('#blDropLabel').textContent = `Ferien: ${activeBL.length} BL`;
+    if (actAll) { actAll.style.background=''; actAll.style.color=''; }
+    if (actNone) { actNone.style.background=''; actNone.style.color=''; }
+  }
+  // pill states
+  if (grid) grid.querySelectorAll('.bl-tb-pill').forEach((p, i) => {
+    const bl = BL_ALL[i];
+    p.className = 'bl-tb-pill' + (Array.isArray(activeBL) && (activeBL.length===0||activeBL.includes(bl)) ? ' sel' : '');
+  });
+}
+
+function updateFilterUI(){document.querySelectorAll('.fbtn[data-fl]').forEach(b=>{const fl=b.dataset.fl;b.className='fbtn'+(activeFilters.has(fl)?` a-${fl}`:'');});document.getElementById('clearFilterBtn').style.display=activeFilters.size?'flex':'none';updateBLUI();}
 function meetingVisible(m){if(!activeFilters.size)return true;return activeFilters.has(m.fl);}
 function meetingActive(m){if(activeMeetingIds===null)return true;return activeMeetingIds.includes(m.id);}
 
@@ -1304,6 +1407,7 @@ function render(){
   else if(view==='overview')renderOverview();
   else if(view==='kontext')renderKontext();
   else if(view==='stammdaten')renderStammdaten();
+  updateBLUI();
 }
 
 // ══════════════════════════════════════════════════════════════════════════
