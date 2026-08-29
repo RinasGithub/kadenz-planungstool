@@ -1659,16 +1659,21 @@ function renderProfileBar() {
 function resetProfile() {
   if (!confirm('Neues leeres Profil starten? Alle nicht gespeicherten Änderungen gehen verloren.')) return;
   currentProfileName = 'Neues Projekt';
+  // Alle Meetings und Teams leeren → wirklich leere Leinwand
+  MEETINGS.length = 0;
+  TEAMS.length = 0;
+  SPECIAL_EVENTS.length = 0;
   activeMeetingIds = null;
   milestones = [];
   betriebsurlaub = [];
   activeBL = [];
-  startDate = new Date(); startDate.setDate(1);
+  startDate = new Date(); startDate.setDate(1); startDate.setHours(0,0,0,0);
   currentDate = new Date(startDate);
   document.getElementById('startDate').value = toLocalISO(startDate);
   sprintLen = 2;
   document.getElementById('sprintLen').value = 2;
   profileStatus = null;
+  closeSidebar();
   renderProfileBar();
   render();
 }
