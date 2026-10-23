@@ -300,6 +300,10 @@
   .dialog-head h2{font-size:16px;font-weight:600;margin-bottom:4px;}
   .dialog-head p{font-size:12px;color:var(--text-muted);}
   .dialog-body{padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  /* MODUS */
+  .mode-card{border:2px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s;text-align:center;}
+  .mode-card:hover,.mode-card.selected{border-color:var(--fl2);background:var(--fl2-light);}
+  .mode-toggle.mode-familie{background:var(--lernen-light)!important;color:var(--lernen)!important;border-color:var(--lernen)!important;}
   .tpl-card{border:2px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:all .15s;}
   .tpl-card:hover,.tpl-card.selected{border-color:var(--fl1);background:var(--fl1-light);}
   .tpl-icon{font-size:22px;margin-bottom:6px;}
@@ -527,6 +531,7 @@
     <button class="vtab" onclick="setView('stammdaten')">📋 Stammdaten</button>
   </div>
   <div class="hsp"></div>
+  <button class="hbtn mode-toggle" id="modeToggleBtn" onclick="openModeSwitcher()" title="Wechseln zu Familien-Modus">🏃 Agile</button>
   <button class="hbtn" onclick="initTemplateDialog()">⬡ Vorlage</button>
   <button class="hbtn" onclick="document.getElementById('icsDialog').style.display='flex'">📅 Kalender-Export</button>
   <div class="ctrl"><label>Projektstart</label><input type="date" id="startDate"></div>
@@ -546,11 +551,11 @@
   <button class="nbtn" id="nextBtn">›</button>
   <span class="sbadge" id="sprintBadge"></span>
   <div class="filters">
-    <button class="fbtn" data-fl="fl1" onclick="toggleFilter('fl1')"><span class="dot" style="background:var(--fl1)"></span>FL1</button>
-    <button class="fbtn" data-fl="fl2" onclick="toggleFilter('fl2')"><span class="dot" style="background:var(--fl2)"></span>FL2</button>
-    <button class="fbtn" data-fl="fl3" onclick="toggleFilter('fl3')"><span class="dot" style="background:var(--fl3)"></span>FL3</button>
-    <button class="fbtn" data-fl="lernen" onclick="toggleFilter('lernen')"><span class="dot" style="background:var(--lernen)"></span>Lernen</button>
-    <button class="fbtn" data-fl="alle" onclick="toggleFilter('alle')"><span class="dot" style="background:var(--alle)"></span>Alle</button>
+    <button class="fbtn" data-fl="fl1" onclick="toggleFilter('fl1')"><span class="dot" style="background:var(--fl1)"></span><span class="fl-label">FL1</span></button>
+    <button class="fbtn" data-fl="fl2" onclick="toggleFilter('fl2')"><span class="dot" style="background:var(--fl2)"></span><span class="fl-label">FL2</span></button>
+    <button class="fbtn" data-fl="fl3" onclick="toggleFilter('fl3')"><span class="dot" style="background:var(--fl3)"></span><span class="fl-label">FL3</span></button>
+    <button class="fbtn" data-fl="lernen" onclick="toggleFilter('lernen')"><span class="dot" style="background:var(--lernen)"></span><span class="fl-label">Lernen</span></button>
+    <button class="fbtn" data-fl="alle" onclick="toggleFilter('alle')"><span class="dot" style="background:var(--alle)"></span><span class="fl-label">Alle</span></button>
     <button class="fbtn" onclick="clearFilters()" id="clearFilterBtn" style="display:none;border-color:var(--border-strong)">✕ Filter</button>
     <div class="bl-dropdown-wrap" id="blDropWrap">
       <button class="bl-dropdown-btn" id="blDropBtn" onclick="toggleBLDropdown()" title="Schulferien nach Bundesland filtern">
@@ -608,6 +613,39 @@
 
 <div id="popupOv" class="popup-ov" style="display:none" onclick="closePopup()"></div>
 <div id="popup" class="popup" style="display:none"></div>
+
+<!-- MODUS-DIALOG -->
+<div class="dialog-ov" id="modeDialog" style="display:none" onclick="if(event.target===this)closeModeDialog()">
+  <div class="dialog" style="width:580px;max-width:97vw">
+    <div class="dlg-hd">
+      <span style="font-size:16px;font-weight:700">Modus wechseln</span>
+      <button class="dlg-close" onclick="closeModeDialog()">✕</button>
+    </div>
+    <div style="padding:20px">
+      <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px">Wähle den Modus. Die Flight-Level-Bezeichnungen und Vorlagen passen sich automatisch an.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div id="modeCard-agile" class="mode-card" onclick="selectMode('agile')">
+          <div style="font-size:28px;margin-bottom:6px">🏃</div>
+          <div style="font-weight:700;font-size:14px">Agile / OE</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">FL1 Team · FL2 Koordination · FL3 Management</div>
+        </div>
+        <div id="modeCard-familie" class="mode-card" onclick="selectMode('familie')">
+          <div style="font-size:28px;margin-bottom:6px">👨‍👩‍👧</div>
+          <div style="font-weight:700;font-size:14px">Familie</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Person · Teilgruppe · Ganze Familie</div>
+        </div>
+      </div>
+      <div id="modeFamilieTemplates" style="display:none">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px">Familien-Vorlage laden:</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="modeTplCards"></div>
+      </div>
+    </div>
+    <div class="dlg-ft">
+      <button class="btn btns" onclick="closeModeDialog()">Abbrechen</button>
+      <button class="btn btnp" id="modeConfirmBtn" onclick="confirmModeSwitch()">✓ Modus wechseln</button>
+    </div>
+  </div>
+</div>
 
 <div class="dialog-ov" id="templateDialog" style="display:none">
   <div class="dialog" style="width:680px;max-width:97vw">
@@ -1191,6 +1229,133 @@ const DAYS_LABEL={1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
 const FL_ORDER=['fl1','fl2','fl3','lernen','alle'];
 const FL_NAMES={fl1:'FL1 — Team-Ebene',fl2:'FL2 — Koordination',fl3:'FL3 — Management',lernen:'Lernen & Kultur',alle:'Alle Ebenen'};
 
+// ══════════════════════════════════════════════════════════════════════════
+// APP-MODUS: 'agile' | 'familie'
+// ══════════════════════════════════════════════════════════════════════════
+let appMode = 'agile'; // 'agile' | 'familie'
+const FL_CONFIG_AGILE  = {fl1:'FL1 — Team-Ebene', fl2:'FL2 — Koordination', fl3:'FL3 — Management', lernen:'Lernen & Kultur', alle:'Alle Ebenen', fl1short:'FL1', fl2short:'FL2', fl3short:'FL3', lernen_short:'Lernen', alle_short:'Alle'};
+const FL_CONFIG_FAMILIE = {fl1:'Person', fl2:'Teilgruppe', fl3:'Ganze Familie', lernen:'Freizeit', alle:'Alle', fl1short:'Person', fl2short:'Gruppe', fl3short:'Familie', lernen_short:'Freizeit', alle_short:'Alle'};
+let flConfig = {...FL_CONFIG_AGILE};
+
+function getFlLabel(fl)     { return flConfig[fl] || FL_NAMES[fl] || fl; }
+function getFlShort(fl)     { return flConfig[fl+'short'] || fl.toUpperCase(); }
+
+function switchAppMode(mode) {
+  appMode = mode;
+  flConfig = mode === 'familie' ? {...FL_CONFIG_FAMILIE} : {...FL_CONFIG_AGILE};
+  // Modus-Button aktualisieren
+  const btn = document.getElementById('modeToggleBtn');
+  if (btn) {
+    btn.textContent = mode === 'familie' ? '👨‍👩‍👧 Familie' : '🏃 Agile';
+    btn.title = mode === 'familie' ? 'Wechseln zu Agile-Modus' : 'Wechseln zu Familien-Modus';
+    btn.classList.toggle('mode-familie', mode === 'familie');
+  }
+  // Filter-Buttons aktualisieren
+  ['fl1','fl2','fl3','lernen','alle'].forEach(fl => {
+    const lbl = document.querySelector(`.fbtn[data-fl="${fl}"] .fl-label`);
+    if (lbl) lbl.textContent = getFlShort(fl);
+  });
+  render();
+}
+
+// Familie-Vorlagen (als fertige MEETINGS-Arrays)
+const TEMPLATES_FAMILIE = [
+  {
+    id: 'familie-basis',
+    icon: '👨‍👩‍👧',
+    name: 'Familie Basis',
+    desc: 'Familienrat, Elternplanung, persönliche Termine',
+    meetings: [
+      {id:'familienrat', name:'Familienrat', framework:'Familie', fl:'fl3', rhythm:'weekly', weekDay:0, time:'18:00', dur:60, color:'#4A90D9'},
+      {id:'elternplanung', name:'Elternplanung', framework:'Familie', fl:'fl2', rhythm:'monthly-nth', weekDay:6, monthWeek:2, time:'20:00', dur:90, color:'#7B68EE'},
+      {id:'haushaltsrunde', name:'Haushaltsrunde', framework:'Familie', fl:'fl2', rhythm:'weekly', weekDay:5, time:'10:00', dur:30, color:'#F5A623'},
+      {id:'hobby-person1', name:'Hobby / Training', framework:'Familie', fl:'fl1', rhythm:'weekly', weekDay:2, time:'18:00', dur:60, color:'#7ED321'},
+      {id:'jahresplanung', name:'Jahresplanung', framework:'Familie', fl:'fl3', rhythm:'everyNweeks', weekInterval:12, weekDay:6, time:'10:00', dur:180, color:'#D0021B'},
+    ]
+  },
+  {
+    id: 'familie-leer',
+    icon: '⬜',
+    name: 'Leer beginnen',
+    desc: 'Familien-Modus ohne Vorlagen',
+    meetings: []
+  }
+];
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODUS-DIALOG-FUNKTIONEN
+// ══════════════════════════════════════════════════════════════════════════
+let _pendingMode = null;
+let _pendingTplId = null;
+
+function openModeSwitcher() {
+  _pendingMode = appMode;
+  _pendingTplId = null;
+  document.getElementById('modeDialog').style.display = 'flex';
+  refreshModeDialog();
+}
+function closeModeDialog() {
+  document.getElementById('modeDialog').style.display = 'none';
+}
+function refreshModeDialog() {
+  ['agile','familie'].forEach(m => {
+    const c = document.getElementById('modeCard-' + m);
+    if (c) c.classList.toggle('selected', m === _pendingMode);
+  });
+  const famSection = document.getElementById('modeFamilieTemplates');
+  if (famSection) famSection.style.display = _pendingMode === 'familie' ? '' : 'none';
+  const cards = document.getElementById('modeTplCards');
+  if (cards && _pendingMode === 'familie') {
+    cards.innerHTML = '';
+    TEMPLATES_FAMILIE.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'tpl-card' + (t.id === _pendingTplId ? ' selected' : '');
+      card.style.cssText = 'width:160px;min-width:0;';
+      card.innerHTML = `<div class="tpl-icon">${t.icon}</div><div class="tpl-name">${t.name}</div><div class="tpl-desc">${t.desc}</div>`;
+      card.onclick = () => { _pendingTplId = t.id; refreshModeDialog(); };
+      cards.appendChild(card);
+    });
+  }
+}
+function selectMode(m) {
+  _pendingMode = m;
+  if (m === 'familie' && !_pendingTplId) _pendingTplId = TEMPLATES_FAMILIE[0].id;
+  if (m === 'agile') _pendingTplId = null;
+  refreshModeDialog();
+}
+function confirmModeSwitch() {
+  if (_pendingMode === appMode && !_pendingTplId) { closeModeDialog(); return; }
+  if (_pendingMode === 'familie') {
+    if (MEETINGS.length > 0) {
+      if (!confirm('Wechsel zu Familien-Modus. Sollen die aktuellen Meetings ersetzt werden?')) return;
+    }
+    switchAppMode('familie');
+    const tpl = TEMPLATES_FAMILIE.find(t => t.id === _pendingTplId);
+    if (tpl) {
+      MEETINGS.length = 0;
+      tpl.meetings.forEach(m => {
+        MEETINGS.push({
+          ...m,
+          durationMin: m.dur || m.durationMin || 60,
+          flLabel: getFlShort(m.fl),
+          weekDay: m.weekDay || null,
+          weekDays: m.weekDays || null,
+          organisator: '', moderator: '', entscheider: '',
+          description: '', input: '', output: '', outputFliesIn: '', doku: '', besonderheit: '',
+          source: '', sourceName: '', important: false, alle: false,
+          teamIds: null, notiz: '',
+        });
+      });
+      TEAMS.length = 0;
+      activeMeetingIds = null;
+    }
+  } else {
+    switchAppMode('agile');
+  }
+  closeModeDialog();
+  render();
+}
+
 function fmtDur(min){if(min<60)return`${min} Min.`;const h=Math.floor(min/60),m=min%60;return m?`${h} Std. ${m} Min.`:`${h} Std.`;}
 function endTime(ts,dur){const[h,m]=ts.split(':').map(Number);const t=h*60+m+dur;return`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;}
 function timeToSlot(ts){const[h,m]=ts.split(':').map(Number);return(h-8)*4+Math.floor(m/15);}
@@ -1752,9 +1917,11 @@ let profileStatus = null;
 
 function getProfileData() {
   return {
-    version: 10,
+    version: 11,
     profileName: currentProfileName,
     savedAt: new Date().toISOString(),
+    // App mode
+    appMode,
     // Settings
     startDate: toLocalISO(startDate),
     sprintLen,
@@ -1813,6 +1980,8 @@ function triggerProfileLoad() {
 function loadProfileData(data) {
   if (!data.version) throw new Error('Kein gültiges Kadenzprofil');
   currentProfileName = data.profileName || 'Importiertes Profil';
+  // App mode
+  if (data.appMode) switchAppMode(data.appMode);
   // Settings
   if (data.startDate) {
     startDate = parseLocalDate(data.startDate);
@@ -1953,7 +2122,6 @@ function addNewMeeting() {
   const name = document.getElementById('nmf-name').value.trim();
   if (!name) { alert('Bitte einen Meeting-Namen eingeben.'); return; }
   const fl = document.getElementById('nmf-fl').value;
-  const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
   const id = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,30) + '-' + Date.now().toString(36);
   const rhythm = document.getElementById('nmf-rhythm').value;
 
@@ -1988,7 +2156,7 @@ function addNewMeeting() {
     name,
     framework: document.getElementById('nmf-framework').value.trim() || 'Eigener Ansatz',
     fl,
-    flLabel: flLabels[fl] || fl.toUpperCase(),
+    flLabel: getFlShort(fl),
     durationMin: parseInt(document.getElementById('nmf-duration').value) || 60,
     rhythm,
     time: document.getElementById('nmf-time').value || '09:00',
@@ -2093,10 +2261,10 @@ function renderStammdaten() {
           <div class="nmf-group"><div class="nmf-label">Framework</div><input class="finput" id="nmf-framework" placeholder="Eigener Ansatz" style="background:white"></div>
           <div class="nmf-group"><div class="nmf-label">Flight Level *</div>
             <select class="fselect" id="nmf-fl" style="background:white">
-              <option value="fl1">FL1 — Team</option>
-              <option value="fl2">FL2 — Koordination</option>
-              <option value="fl3">FL3 — Management</option>
-              <option value="lernen">Lernen & Kultur</option>
+              <option value="fl1">${getFlLabel('fl1')}</option>
+              <option value="fl2">${getFlLabel('fl2')}</option>
+              <option value="fl3">${getFlLabel('fl3')}</option>
+              <option value="lernen">${getFlLabel('lernen')}</option>
             </select>
           </div>
         </div>
@@ -2353,7 +2521,7 @@ function handleStammdatenUpload(event) {
           name,
           framework: String(row[colMap.framework]||'Eigener Ansatz').trim(),
           fl,
-          flLabel: fl.toUpperCase().replace('FL1','FL1').replace('FL2','FL2').replace('FL3','FL3'),
+          flLabel: getFlShort(fl),
           durationMin: parseDuration(String(row[colMap.duration]||'')),
           rhythm: (() => { const datumRaw = String(row[colMap.datum]||'').trim(); const rhythmRaw = String(row[colMap.rhythm]||'').trim(); if (datumRaw && !rhythmRaw) return 'einmalig'; return parseRhythm(rhythmRaw); })(),
           startDate: (() => { const raw = String(row[colMap.datum]||'').trim(); if (!raw) return null; const d = new Date(raw); return isNaN(d) ? null : toLocalISO(d); })(),
@@ -2517,15 +2685,27 @@ function exportMeetingsExcel() {
 // YEAR / SWIMLANE VIEW
 // ══════════════════════════════════════════════════════════════════════════
 
-// Lanes: one per FL + milestones lane
-const LANES = [
-  {id:'alle',  label:'Alle Ebenen',        sub:'All-Hands · Town Hall · Org-weite Events', color:'var(--alle)'},
-  {id:'fl1',  label:'FL1 — Team',        sub:'Daily · Planning · Review · Retro', color:'var(--fl1)'},
-  {id:'fl2',  label:'FL2 — Koordination',sub:'Overall Daily · Gesamt-Review · Retro', color:'var(--fl2)'},
-  {id:'fl3',  label:'FL3 — Management',  sub:'LAS · Quartals-Planning', color:'var(--fl3)'},
-  {id:'lernen',label:'Lernen & Kultur',  sub:'CoP · Lean Coffee', color:'var(--lernen)'},
+// Lanes: one per FL + milestones lane — rebuilt dynamically per mode
+const LANES_AGILE = [
+  {id:'alle',  sub:'All-Hands · Town Hall · Org-weite Events', color:'var(--alle)'},
+  {id:'fl1',  sub:'Daily · Planning · Review · Retro', color:'var(--fl1)'},
+  {id:'fl2',  sub:'Overall Daily · Gesamt-Review · Retro', color:'var(--fl2)'},
+  {id:'fl3',  sub:'LAS · Quartals-Planning', color:'var(--fl3)'},
+  {id:'lernen',sub:'CoP · Lean Coffee', color:'var(--lernen)'},
   {id:'milestone',label:'Meilensteine', sub:'Fixpunkte · Betriebsurlaub', color:'var(--ms-milestone)'},
 ];
+const LANES_FAMILIE = [
+  {id:'alle',  sub:'Gemeinsame Aktivitäten', color:'var(--alle)'},
+  {id:'fl3',  sub:'Familienrat · Urlaub · Jahresplanung', color:'var(--fl3)'},
+  {id:'fl2',  sub:'Eltern · Teilgruppen', color:'var(--fl2)'},
+  {id:'fl1',  sub:'Einzelperson · persönliche Termine', color:'var(--fl1)'},
+  {id:'lernen',sub:'Hobbies · Sport · Freizeit', color:'var(--lernen)'},
+  {id:'milestone',label:'Meilensteine', sub:'Geburtstage · Fixpunkte', color:'var(--ms-milestone)'},
+];
+function getLanes() {
+  const base = appMode === 'familie' ? LANES_FAMILIE : LANES_AGILE;
+  return base.map(l => ({...l, label: l.label || getFlLabel(l.id)}));
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // TEAMS (Multi-Team-Modus)
@@ -2735,10 +2915,10 @@ function renderYear() {
   nav.innerHTML = `
     <div class="yr-nav-title">${yr}</div>
     <div class="yr-legend">
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl1)"></div>FL1</div>
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl2)"></div>FL2</div>
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl3)"></div>FL3</div>
-      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--lernen)"></div>Lernen</div>
+      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl1)"></div>${getFlShort('fl1')}</div>
+      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl2)"></div>${getFlShort('fl2')}</div>
+      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--fl3)"></div>${getFlShort('fl3')}</div>
+      <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--lernen)"></div>${getFlShort('lernen')}</div>
       <div class="yr-legend-item"><div style="width:18px;height:4px;border-top:3px solid var(--red);margin-top:2px;border-radius:1px"></div>Feiertag (rote Linie)</div>
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:#0D9488"></div>Schulferien</div>
       <div class="yr-legend-item"><div class="yr-legend-dot" style="background:var(--ms-milestone)"></div>Meilenstein</div>
@@ -2886,7 +3066,7 @@ function renderYear() {
 
   const shortName = name => name.replace('Sprint ', 'Spr.').replace('Retrospektive','Retro').replace('Refinement','Refin.').replace('Planning','Plan.').replace('Lenkungsausschuss','LAS').replace('Koordinations-','Koo-').replace('Gesamt-Review / Demo','Ges.-Rev.').replace('Community of Practice','CoP').replace('Quartals-Planning','QP').replace('Replenishment','Repl.').replace('Sprechstunde Infra','Sprchst.').replace('Overall Daily','Ov.Daily').replace('Cross-','X-');
 
-  LANES.forEach(lane => {
+  getLanes().forEach(lane => {
     const teamsInFL = (lane.id === 'alle' || lane.id === 'milestone')
       ? []
       : TEAMS.filter(t => t.fl === lane.id);
@@ -3105,7 +3285,7 @@ function renderOverview(){
     const group=vis.filter(m=>m.fl===fl);if(!group.length)return;
     const sec=document.createElement('div');sec.className='ov-section';
     const title=document.createElement('div');title.className=`ov-section-title ${fl}`;
-    title.innerHTML=`<span>${FL_NAMES[fl]}</span><span style="font-weight:400;opacity:.7">${group.length} Meetings</span>`;
+    title.innerHTML=`<span>${getFlLabel(fl)}</span><span style="font-weight:400;opacity:.7">${group.length} Meetings</span>`;
     sec.appendChild(title);
     const table=document.createElement('table');table.className='ov-table';
     table.innerHTML=`<thead><tr><th>Meeting</th><th>Rhythmus</th><th>Dauer</th><th>Zeit</th><th>Tag</th><th>Organisator</th><th>Moderator</th><th>Quelle</th><th style="width:32px"></th></tr></thead>`;
@@ -3333,10 +3513,10 @@ function renderKontext(){
         <div class="ms-form-group"><label class="ms-form-label">Teamname</label><input class="finput" id="new-team-name" placeholder="z.B. Team Alpha"></div>
         <div class="ms-form-group"><label class="ms-form-label">Flight Level</label>
           <select class="fselect" id="new-team-fl">
-            <option value="fl1">FL1 — Team</option>
-            <option value="fl2">FL2 — Koordination</option>
-            <option value="fl3">FL3 — Management</option>
-            <option value="lernen">Lernen</option>
+            <option value="fl1">${getFlLabel('fl1')}</option>
+            <option value="fl2">${getFlLabel('fl2')}</option>
+            <option value="fl3">${getFlLabel('fl3')}</option>
+            <option value="lernen">${getFlLabel('lernen')}</option>
           </select>
         </div>
         <div class="ms-form-group"><label class="ms-form-label">Sprintlänge</label>
@@ -3358,10 +3538,10 @@ function renderKontext(){
           <div class="ms-form-group"><label class="ms-form-label">Teamname</label><input class="finput" id="edit-team-name" placeholder="Teamname"></div>
           <div class="ms-form-group"><label class="ms-form-label">Flight Level</label>
             <select class="fselect" id="edit-team-fl">
-              <option value="fl1">FL1 — Team</option>
-              <option value="fl2">FL2 — Koordination</option>
-              <option value="fl3">FL3 — Management</option>
-              <option value="lernen">Lernen</option>
+              <option value="fl1">${getFlLabel('fl1')}</option>
+              <option value="fl2">${getFlLabel('fl2')}</option>
+              <option value="fl3">${getFlLabel('fl3')}</option>
+              <option value="lernen">${getFlLabel('lernen')}</option>
             </select>
           </div>
           <div class="ms-form-group"><label class="ms-form-label">Sprintlänge</label>
@@ -3394,7 +3574,7 @@ function renderKontext(){
       item.innerHTML = `
         <span style="width:10px;height:10px;border-radius:50%;background:${team.color};display:inline-block;margin-right:4px;flex-shrink:0"></span>
         <span class="ms-item-name" style="flex:1">${team.name}</span>
-        <span class="ms-item-type" style="background:#F1F5F9;color:#475569">${FL_NAMES[team.fl]||team.fl}</span>
+        <span class="ms-item-type" style="background:#F1F5F9;color:#475569">${getFlLabel(team.fl)||team.fl}</span>
         <span class="ms-item-type" style="background:#F1F5F9;color:#475569">${team.sprintLen ? team.sprintLen+'W' : 'Kanban'}</span>
         <button class="sd-edit-btn" onclick="startEditTeam('${team.id}')" title="Bearbeiten">✎</button>
         <button class="ms-del" onclick="deleteTeam('${team.id}')" title="Löschen">×</button>`;
@@ -3476,7 +3656,7 @@ function confirmEditTeam() {
         `${affectedMeetings.length} Meeting(s) sind diesem Team zugewiesen.\n\n` +
         `Sollen diese Meetings auch auf ${newFl.toUpperCase()} umgestellt werden?`
       );
-      if (moveAlso) affectedMeetings.forEach(m => { m.fl = newFl; m.flLabel = newFl.toUpperCase(); });
+      if (moveAlso) affectedMeetings.forEach(m => { m.fl = newFl; m.flLabel = getFlShort(newFl); });
     }
   }
   team.name = document.getElementById('edit-team-name').value.trim() || team.name;
@@ -3735,21 +3915,20 @@ function buildSidebarDynamic(m) {
   const picker = document.getElementById('sb-fl-picker-' + m.id);
   if (picker) {
     picker.innerHTML = '';
-    const fls = [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'},{id:'alle',label:'Alle'}];
-    fls.forEach(fl => {
+    ['fl1','fl2','fl3','lernen','alle'].forEach(flId => {
       const btn = document.createElement('button');
-      btn.className = 'dpill' + (m.fl === fl.id ? ' sel' : '');
-      btn.textContent = fl.label;
+      btn.className = 'dpill' + (m.fl === flId ? ' sel' : '');
+      btn.textContent = getFlShort(flId);
+      btn.title = getFlLabel(flId);
       btn.style.cssText = 'font-size:10px;padding:2px 8px;';
-      if (m.fl === fl.id) {
-        btn.style.borderColor = 'var(--' + fl.id + ')';
-        btn.style.background = 'var(--' + fl.id + '-light)';
-        btn.style.color = 'var(--' + fl.id + ')';
+      if (m.fl === flId) {
+        btn.style.borderColor = 'var(--' + flId + ')';
+        btn.style.background = 'var(--' + flId + '-light)';
+        btn.style.color = 'var(--' + flId + ')';
       }
       btn.onclick = () => {
-        const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
-        m.fl = fl.id;
-        m.flLabel = flLabels[fl.id];
+        m.fl = flId;
+        m.flLabel = getFlShort(flId);
         render();
         openSidebar(m, new Date(), {level:'green', msg:'🟢 Kein Konflikt'});
       };
@@ -4079,15 +4258,15 @@ function openDraftSidebar(m, date) {
 
   // Build FL picker
   const flPicker = document.getElementById('draft-fl-picker');
-  [{id:'fl1',label:'FL1'},{id:'fl2',label:'FL2'},{id:'fl3',label:'FL3'},{id:'lernen',label:'Lernen'},{id:'alle',label:'Alle'}].forEach(fl=>{
+  ['fl1','fl2','fl3','lernen','alle'].forEach(flId=>{
     const btn=document.createElement('button');
-    btn.className='dpill'+(m.fl===fl.id?' sel':'');
-    btn.textContent=fl.label;
+    btn.className='dpill'+(m.fl===flId?' sel':'');
+    btn.textContent=getFlShort(flId);
+    btn.title=getFlLabel(flId);
     btn.style.cssText='font-size:11px;padding:3px 10px;';
-    if(m.fl===fl.id){btn.style.borderColor='var(--'+fl.id+')';btn.style.background='var(--'+fl.id+'-light)';btn.style.color='var(--'+fl.id+')';}
+    if(m.fl===flId){btn.style.borderColor='var(--'+flId+')';btn.style.background='var(--'+flId+'-light)';btn.style.color='var(--'+flId+')';}
     btn.onclick=()=>{
-      const flLabels={fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
-      draftMeeting.fl=fl.id;draftMeeting.flLabel=flLabels[fl.id];
+      draftMeeting.fl=flId;draftMeeting.flLabel=getFlShort(flId);
       openDraftSidebar(draftMeeting, date);
     };
     flPicker.appendChild(btn);
@@ -4171,9 +4350,8 @@ function cancelDraft() {
 function applyFL(id, fl, btn) {
   const m = MEETINGS.find(x => x.id === id);
   if (!m) return;
-  const flLabels = {fl1:'FL1',fl2:'FL2',fl3:'FL3',lernen:'Lernen',alle:'Alle'};
   m.fl = fl;
-  m.flLabel = flLabels[fl] || fl.toUpperCase();
+  m.flLabel = getFlShort(fl);
   // Update all FL pills in sidebar
   btn.closest('div').querySelectorAll('button').forEach(b => {
     const bfl = b.textContent.trim().toLowerCase().replace('lernen','lernen');
@@ -4488,7 +4666,7 @@ function importExcelAsTemplate(input){
           id:name.toLowerCase().replace(/[^a-z0-9]/g,'-').slice(0,30)+'-'+Date.now().toString(36),
           name,
           framework:String(row[colMap.framework]||'Eigener Ansatz').trim(),
-          fl,flLabel:fl.toUpperCase(),
+          fl,flLabel:getFlShort(fl),
           durationMin:parseDuration(String(row[colMap.duration]||'')),
           rhythm:datumRaw&&!String(row[colMap.rhythm]||'').trim()?'einmalig':parseRhythm(String(row[colMap.rhythm]||'')),
           startDate:datumRaw?(()=>{const d=new Date(datumRaw);return isNaN(d)?null:toLocalISO(d);})():null,
