@@ -1667,14 +1667,19 @@ function getMeetingsForDate(date, teamId = null){
         break;
       }
       case 'monthly':{
-        if(m.startDate && m.weekDay){
-          // Same weekday, every 4 weeks from anchor ≈ monthly on that weekday
-          // Use "nth weekday of month matching anchor's week position"
-          const ms=parseLocalDate(m.startDate);
-          const anchorWeekOfMonth=Math.ceil(ms.getDate()/7);
-          const thisWeekOfMonth=Math.ceil(date.getDate()/7);
-          show=(weekDay===m.weekDay && thisWeekOfMonth===anchorWeekOfMonth);
+        if(m.weekDay){
+          // nth weekday of month: use monthWeek if set, else derive from startDate, else default to 2nd week
+          let targetWeek;
+          if(m.monthWeek){
+            targetWeek=m.monthWeek;
+          } else if(m.startDate){
+            targetWeek=Math.ceil(parseLocalDate(m.startDate).getDate()/7);
+          } else {
+            targetWeek=2;
+          }
+          show=(weekDay===m.weekDay && Math.ceil(date.getDate()/7)===targetWeek);
         } else {
+          // Legacy: 2nd Tuesday fallback
           const fd=new Date(date.getFullYear(),date.getMonth(),1);let ft=new Date(fd);while(ft.getDay()!==2)ft.setDate(ft.getDate()+1);ft.setDate(ft.getDate()+7);show=(date.toDateString()===ft.toDateString());
         }
         break;
@@ -1979,6 +1984,7 @@ function getProfileData() {
     // Settings
     startDate: toLocalISO(startDate),
     sprintLen,
+    showWeekends,
     // Meetings (full state incl. user edits)
     meetings: MEETINGS.map(m => ({...m})),
     // Context
@@ -2046,6 +2052,7 @@ function loadProfileData(data) {
     sprintLen = data.sprintLen;
     document.getElementById('sprintLen').value = sprintLen;
   }
+  if (typeof data.showWeekends === 'boolean' && data.showWeekends !== showWeekends) toggleWeekends();
   // Meetings — replace entirely
   if (data.meetings && data.meetings.length) {
     MEETINGS.length = 0;
@@ -2349,6 +2356,8 @@ function renderStammdaten() {
               <option value="3">Mittwoch</option>
               <option value="4">Donnerstag</option>
               <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
             </select>
           </div>
           <div class="nmf-group" id="nmf-extra-wrap" style="display:none;grid-column:1/-1"></div>
@@ -2503,7 +2512,7 @@ function renderStammdatenTable() {
           td.style.color = m.important ? 'var(--red)' : '';
           break;
         case 'sourceName':
-          if(m.source) td.innerHTML = `<a href="${m.source}" target="_blank" class="sd-source">↗ ${m.sourceName}</a>`;
+          if(m.source && /^https?:\/\//i.test(m.source)) { const a=document.createElement('a'); a.href=m.source; a.target='_blank'; a.rel='noopener noreferrer'; a.className='sd-source'; a.textContent='↗ '+(m.sourceName||m.source); td.appendChild(a); }
           else td.innerHTML = `<span style="font-size:10px;color:var(--text-light);font-style:italic">Eigenes Format</span>`;
           break;
         default:
@@ -3931,7 +3940,7 @@ function openSidebar(m,date,conflict){
         <div class="fgi" style="margin-bottom:5px"><input class="finput" value="${(m.sourceName||'').replace(/"/g,'&quot;')}" placeholder="Name (z.B. Scrum Guide 2020)" onchange="applyField('${m.id}','sourceName',this.value)"></div>
         <div class="fgi" style="display:flex;align-items:center;gap:6px">
           <input class="finput" value="${(m.source||'').replace(/"/g,'&quot;')}" placeholder="URL (https://…)" onchange="applyField('${m.id}','source',this.value)" style="flex:1">
-          ${m.source?`<a href="${m.source}" target="_blank" class="srclink" style="white-space:nowrap">↗ öffnen</a>`:''}
+          ${m.source&&/^https?:\/\//i.test(m.source)?`<a href="${m.source.replace(/"/g,'%22')}" target="_blank" rel="noopener noreferrer" class="srclink" style="white-space:nowrap">↗ öffnen</a>`:''}
         </div>
       </div>
       ${buildChecklistHtml(m.id)}
@@ -6292,12 +6301,13 @@ function buildPrintView() {
   const lastDay = new Date(y, m, 0);
   const numDays = lastDay.getDate();
 
-  // Get meetings in this month from tool
-  const monthMeetings = MEETINGS.filter(ev => {
-    if (!ev.date) return false;
-    const d = new Date(ev.date);
-    return d.getFullYear() === y && d.getMonth() + 1 === m;
-  });
+  // Meetings pro Tag vorberechnen — nutzt dieselbe Logik wie der Kalender
+  const _meetingCache = {};
+  function _getMeetingsForDay(date) {
+    const key = toLocalISO(date);
+    if (!_meetingCache[key]) _meetingCache[key] = getMeetingsForDate(date);
+    return _meetingCache[key];
+  }
 
   // Theme data
   const ernte = showErnte ? getErnteForMonth(m) : [];
@@ -6323,9 +6333,7 @@ function buildPrintView() {
   for (let h = 6; h <= 22; h++) TIME_SLOTS.push(h);
 
   function getMeetingsForDayAndHour(date, hour) {
-    const iso = toLocalISO(date);
-    return monthMeetings.filter(ev => {
-      if (ev.date !== iso) return false;
+    return _getMeetingsForDay(date).filter(ev => {
       if (!ev.time) return hour === 9;
       const [hh] = ev.time.split(':').map(Number);
       return hh === hour;
