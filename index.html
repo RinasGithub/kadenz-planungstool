@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -170,7 +170,7 @@
   .bl-dropdown-wrap{position:relative;display:inline-block;}
   .bl-dropdown-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;white-space:nowrap;}
   .bl-dropdown-btn.active{border-color:var(--alle);color:var(--alle);background:var(--alle-light);}
-  .bl-dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;min-width:320px;}
+  .bl-dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;left:auto;z-index:200;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;min-width:380px;max-height:80vh;overflow-y:auto;}
   .bl-dropdown-panel.open{display:block;}
   .bl-dropdown-actions{display:flex;gap:6px;margin-bottom:8px;}
   .bl-dropdown-actions button{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;}
@@ -543,6 +543,7 @@
     </select>
   </div>
   <button class="hbtn" id="weekendToggle" onclick="toggleWeekends()" title="Wochenenden einblenden">📅 Wochenenden</button>
+  <button class="hbtn" onclick="openPrintDialog()" title="Monatskalender drucken">🖨 Drucken</button>
 </header>
 
 <div class="toolbar">
@@ -613,6 +614,57 @@
 
 <div id="popupOv" class="popup-ov" style="display:none" onclick="closePopup()"></div>
 <div id="popup" class="popup" style="display:none"></div>
+
+<!-- DRUCK-DIALOG -->
+<div class="dialog-ov" id="printDialog" style="display:none" onclick="if(event.target===this)closePrintDialog()">
+  <div class="dialog" style="width:520px;max-width:97vw">
+    <div class="dlg-hd">
+      <span>🖨 Kalender drucken</span>
+      <button class="dlg-close" onclick="closePrintDialog()">✕</button>
+    </div>
+    <div class="dlg-body" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+      <div style="display:flex;gap:12px;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);">Monat</label>
+          <select id="printMonthInput" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:13px;" onchange="updateThemePreview()">
+            <option value="1">Januar</option><option value="2">Februar</option><option value="3">März</option>
+            <option value="4">April</option><option value="5">Mai</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);">Jahr</label>
+          <input type="number" id="printYearInput" min="2020" max="2040" style="width:80px;padding:6px 10px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-size:13px;">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Saisonale Themen</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+          <input type="checkbox" id="themeAuto" checked onchange="updateThemePreview()"> Automatisch nach Monat
+        </label>
+        <div style="display:flex;gap:16px;padding-left:4px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#16a34a;">
+            <input type="checkbox" id="themeErnte" checked disabled> 🌾 Ernte
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#9333ea;">
+            <input type="checkbox" id="themeBastel" checked disabled> ✂️ Basteln &amp; Küche
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#0ea5e9;">
+            <input type="checkbox" id="themeFisch" checked disabled> 🐟 Fisch-Schonzeiten
+          </label>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);background:var(--surface);border-radius:6px;padding:10px 12px;border:1px solid var(--border);">
+        ℹ️ Es wird ein neues Fenster geöffnet. Termine aus dem aktuellen Monat werden automatisch eingetragen. Bitte den Browser-Druckdialog mit <strong>A4 Querformat</strong> verwenden.
+      </div>
+    </div>
+    <div class="sbf">
+      <button class="btn btns" onclick="closePrintDialog()">Abbrechen</button>
+      <button class="btn btnp" onclick="buildPrintView()">🖨 Drucken</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODUS-DIALOG -->
 <div class="dialog-ov" id="modeDialog" style="display:none" onclick="if(event.target===this)closeModeDialog()">
@@ -1225,7 +1277,7 @@ let betriebsurlaub=[]; // {id,from,to,label}
 // ══════════════════════════════════════════════════════════════════════════
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const DAYS_SHORT=['Mo','Di','Mi','Do','Fr','Sa','So'];
-const DAYS_LABEL={1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
+const DAYS_LABEL={1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr',6:'Sa',7:'So'};
 const FL_ORDER=['fl1','fl2','fl3','lernen','alle'];
 const FL_NAMES={fl1:'FL1 — Team-Ebene',fl2:'FL2 — Koordination',fl3:'FL3 — Management',lernen:'Lernen & Kultur',alle:'Alle Ebenen'};
 
@@ -1266,7 +1318,7 @@ const TEMPLATES_FAMILIE = [
     name: 'Familie Basis',
     desc: 'Familienrat, Elternplanung, persönliche Termine',
     meetings: [
-      {id:'familienrat', name:'Familienrat', framework:'Familie', fl:'fl3', rhythm:'weekly', weekDay:0, time:'18:00', dur:60, color:'#4A90D9'},
+      {id:'familienrat', name:'Familienrat', framework:'Familie', fl:'fl3', rhythm:'weekly', weekDay:7, time:'18:00', dur:60, color:'#4A90D9'},
       {id:'elternplanung', name:'Elternplanung', framework:'Familie', fl:'fl2', rhythm:'monthly-nth', weekDay:6, monthWeek:2, time:'20:00', dur:90, color:'#7B68EE'},
       {id:'haushaltsrunde', name:'Haushaltsrunde', framework:'Familie', fl:'fl2', rhythm:'weekly', weekDay:5, time:'10:00', dur:30, color:'#F5A623'},
       {id:'hobby-person1', name:'Hobby / Training', framework:'Familie', fl:'fl1', rhythm:'weekly', weekDay:2, time:'18:00', dur:60, color:'#7ED321'},
@@ -2060,8 +2112,7 @@ function nmfRhythmChanged() {
   const wdWrap = document.getElementById('nmf-weekday-wrap');
   const extraWrap = document.getElementById('nmf-extra-wrap');
   const seriesWrap = document.getElementById('nmf-series-wrap');
-  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
-  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
 
   // Serienzeile: bei einmalig ausblenden (hat eigene Von/Bis im extraWrap)
   if (seriesWrap) seriesWrap.style.display = rhythm === 'einmalig' ? 'none' : '';
@@ -3773,9 +3824,7 @@ function openSidebar(m,date,conflict){
   const effDurSb=getEffectiveDuration(m);
   const end=endTime(m.time,effDurSb);
   const durCalc=`= ${fmtDur(effDurSb)} · Ende: ${end}`;
-  const _allDayOpts = showWeekends
-    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
-    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  const _allDayOpts = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
   const dayOpts=_allDayOpts.map(({label,val})=>`<button class="dpill${m.weekDay===val?' sel':''}" onclick="setWeekDay('${m.id}',${val},this)">${label}</button>`).join('')+`<button class="dpill${m.weekDay===null?' sel':''}" onclick="setWeekDay('${m.id}',null,this)">–</button>`;
   const isCustom=m.framework==='Eigener Ansatz';
   const conflictExtra = getAdditionalConflictInfo(date);
@@ -4059,8 +4108,7 @@ function renderRhythmExtra(id) {
   const el = document.getElementById('rhythm-extra-' + id);
   if (!m || !el) return;
   const rhythm = m.rhythm;
-  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
-  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
 
   if (rhythm === 'einmalig') {
     el.innerHTML = `
@@ -4274,9 +4322,7 @@ function openDraftSidebar(m, date) {
 
   // Build day picker
   const dayPicker = document.getElementById('draft-day-picker');
-  const allDays = showWeekends
-    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
-    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  const allDays = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
   allDays.forEach(({label,val})=>{
     const btn=document.createElement('button');
     btn.className='dpill'+(m.weekDay===val?' sel':'');
@@ -4743,6 +4789,1717 @@ render();
 initTemplateDialog();
 // Ferien asynchron aus API laden (mit localStorage-Cache)
 loadFerienFromAPI();
+
+// ===== DRUCKANSICHT =====
+const ERNTE_DATA = [{"name":"Bärlauch","teil":"Blätter","von":3,"bis":4,"verarbeitung":"Pesto, Kräuterbutter, Bärlauchsalz, Knospen als Kapern","warnung":"Verwechslung mit Maiglöckchen, Herbstzeitlose und Aronstab (giftig) – Geruchstest bei jedem Blatt"},{"name":"Brennnessel","teil":"Junge Triebe","von":3,"bis":5,"verarbeitung":"Wie Spinat, Suppe, Tee, Chips","warnung":"Handschuhe beim Ernten"},{"name":"Brennnessel","teil":"Samen","von":8,"bis":9,"verarbeitung":"Geröstet über Salat oder Müsli","warnung":null},{"name":"Löwenzahn","teil":"Blätter","von":3,"bis":4,"verarbeitung":"Salat","warnung":null},{"name":"Löwenzahn","teil":"Blüten","von":4,"bis":5,"verarbeitung":"Löwenzahnsirup („Löwenzahnhonig“)","warnung":null},{"name":"Löwenzahn","teil":"Wurzel","von":10,"bis":10,"verarbeitung":"Geröstet als Kaffeeersatz","warnung":null},{"name":"Gänseblümchen","teil":"Blüten und Knospen","von":3,"bis":10,"verarbeitung":"Deko im Salat, Knospen als falsche Kapern","warnung":null},{"name":"Duftveilchen","teil":"Blüten","von":3,"bis":4,"verarbeitung":"Kandierte Blüten, Veilchensirup","warnung":null},{"name":"Giersch","teil":"Blätter","von":4,"bis":6,"verarbeitung":"Wie Spinat, Pesto, Quiche","warnung":"Verwechslung mit giftigen Doldenblütlern möglich – auf dreiteilige Blätter und dreikantigen Stiel achten"},{"name":"Waldmeister","teil":"Kraut (vor der Blüte)","von":4,"bis":5,"verarbeitung":"Sirup, Götterspeise – vorher anwelken lassen","warnung":"Enthält Cumarin – sparsam dosieren"},{"name":"Spitzwegerich","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Hustensirup, Tee","warnung":null},{"name":"Fichte","teil":"Maitriebe","von":5,"bis":5,"verarbeitung":"Sirup, Maiwipfelhonig, Salz","warnung":"Nur wenige Triebe pro Baum, auf viele Bäume verteilen"},{"name":"Robinie („Akazie“)","teil":"Blüten","von":5,"bis":6,"verarbeitung":"Blüten in Teig ausbacken","warnung":"Nur die Blüten sind essbar, Rest der Pflanze giftig"},{"name":"Echte Kamille","teil":"Blüten","von":5,"bis":8,"verarbeitung":"Tee","warnung":null},{"name":"Schwarzer Holunder","teil":"Blüten","von":5,"bis":6,"verarbeitung":"Sirup (schwed. Flädersaft), Hollerküchle, Gelee, Essig – nicht waschen, nur ausschütteln","warnung":null},{"name":"Schwarzer Holunder","teil":"Beeren","von":8,"bis":9,"verarbeitung":"Saft, Gelee, Fliederbeersuppe, Mus","warnung":"Roh unverträglich – immer erhitzen"},{"name":"Hunds-Rose","teil":"Blüten","von":6,"bis":6,"verarbeitung":"Rosensirup, Rosenblütengelee, Rosenzucker","warnung":null},{"name":"Hunds-Rose","teil":"Hagebutten","von":9,"bis":11,"verarbeitung":"Hagebuttenmark, Marmelade, Tee","warnung":"Kerne und Härchen entfernen (Juckreiz)"},{"name":"Linde","teil":"Blüten","von":6,"bis":7,"verarbeitung":"Tee, Sirup","warnung":null},{"name":"Mädesüß","teil":"Blüten","von":6,"bis":8,"verarbeitung":"Sirup, Tee","warnung":null},{"name":"Johanniskraut","teil":"Blüten","von":6,"bis":8,"verarbeitung":"Rotöl","warnung":"Macht die Haut lichtempfindlich"},{"name":"Walderdbeere","teil":"Früchte","von":6,"bis":8,"verarbeitung":"Marmelade, frisch","warnung":"Bodennah: gründlich waschen (Fuchsbandwurm)"},{"name":"Himbeere","teil":"Früchte","von":7,"bis":8,"verarbeitung":"Marmelade, Sirup, Essig","warnung":null},{"name":"Heidelbeere / Blåbär","teil":"Früchte","von":7,"bis":8,"verarbeitung":"Kuchen, Pfannkuchen, Marmelade, Einfrieren; schwed. Blåbärssoppa, Blåbärspaj","warnung":"Bodennah: waschen oder erhitzen (Fuchsbandwurm)"},{"name":"Brombeere","teil":"Früchte","von":7,"bis":9,"verarbeitung":"Gelee (passiert, kernfrei), Kuchen, Sirup","warnung":null},{"name":"Haselnuss","teil":"Nüsse","von":8,"bis":9,"verarbeitung":"Rösten, Nussmus","warnung":null},{"name":"Kornelkirsche","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Marmelade, Sirup","warnung":"Erst ernten, wenn dunkelrot und weich"},{"name":"Weißdorn","teil":"Früchte","von":9,"bis":10,"verarbeitung":"Mus, Tee","warnung":null},{"name":"Eberesche / Vogelbeere / Rönnbär","teil":"Früchte","von":9,"bis":10,"verarbeitung":"Gelee (mit Äpfeln), schwed. Rönnbärsgelé zu Wild","warnung":"Nur gekocht verwenden, roh unverträglich"},{"name":"Rotbuche","teil":"Bucheckern","von":9,"bis":10,"verarbeitung":"Rösten, Öl","warnung":"Roh in größerer Menge unverträglich"},{"name":"Esskastanie","teil":"Maronen","von":10,"bis":11,"verarbeitung":"Rösten, Püree, Suppe, Maronencreme","warnung":null},{"name":"Schlehe","teil":"Früchte","von":10,"bis":11,"verarbeitung":"Gelee, Saft, Mus – nach Frost oder 1–2 Tage ins Gefrierfach","warnung":null},{"name":"Mispel","teil":"Früchte","von":11,"bis":11,"verarbeitung":"Gelee, Mus – erst essbar, wenn teigig","warnung":null},{"name":"Speierling","teil":"Früchte","von":9,"bis":10,"verarbeitung":"Gelee","warnung":null},{"name":"Walnuss","teil":"Grüne Nüsse","von":6,"bis":6,"verarbeitung":"Eingelegte schwarze Nüsse, Walnusssirup (um den 24. Juni)","warnung":null},{"name":"Walnuss","teil":"Reife Nüsse","von":9,"bis":10,"verarbeitung":"Trocknen, Backen, Pesto","warnung":null},{"name":"Borretsch","teil":"Blätter, Blüten","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Kerbel","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Gartenkresse","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Petersilie","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Pimpinelle","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Sauerampfer","teil":"Blätter","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Schnittlauch","teil":"Halme","von":4,"bis":9,"verarbeitung":"Frankfurter Grüne Soße","warnung":null},{"name":"Rhabarber","teil":"Stiele","von":5,"bis":6,"verarbeitung":"Kompott, Kuchen, Sirup (Ernte bis 24. Juni)","warnung":"Blätter nicht essen"},{"name":"Gartenerdbeere","teil":"Früchte","von":6,"bis":6,"verarbeitung":"Marmelade, Kuchen","warnung":null},{"name":"Süßkirsche","teil":"Früchte","von":6,"bis":7,"verarbeitung":"Kirschenmichel, Einkochen, Marmelade","warnung":null},{"name":"Rote Johannisbeere","teil":"Früchte","von":6,"bis":7,"verarbeitung":"Gelee, Saft, Träubleskuchen","warnung":null},{"name":"Stachelbeere","teil":"Früchte","von":6,"bis":7,"verarbeitung":"Kompott, Baiserkuchen, Chutney","warnung":null},{"name":"Pflaume (euer Baum)","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Pflaumenmus aus dem Backofen, Marmelade, Chutney, entsteint einfrieren","warnung":null},{"name":"Zwetschge","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Quetschekuchen, Latwerge, Dörrpflaumen","warnung":null},{"name":"Mirabelle","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Kompott, Marmelade","warnung":null},{"name":"Feige (euer Strauch)","teil":"Sommerfeigen","von":6,"bis":7,"verarbeitung":"Frisch, Marmelade (sortenabhängig)","warnung":null},{"name":"Feige (euer Strauch)","teil":"Reife Herbstfeigen","von":8,"bis":10,"verarbeitung":"Feigen-Walnuss-Marmelade, Feigensenf, Chutney, Trocknen","warnung":null},{"name":"Feige (euer Strauch)","teil":"Unreife grüne Feigen","von":10,"bis":10,"verarbeitung":"Kandieren nach griechischer Art (Glyko koutaliou)","warnung":"Milchsaft reizt die Haut – Handschuhe tragen"},{"name":"Feige (euer Strauch)","teil":"Blätter","von":5,"bis":9,"verarbeitung":"Sirup, Eis, Fisch oder Käse darin garen","warnung":"Milchsaft reizt die Haut"},{"name":"Apfel","teil":"Früchte","von":8,"bis":10,"verarbeitung":"Süßer (Apfelsaft), Apfelmus, Dörrringe, Apfelchips","warnung":null},{"name":"Birne","teil":"Früchte","von":8,"bis":10,"verarbeitung":"Dörrbirnen, Birnenkraut, Kompott","warnung":null},{"name":"Quitte","teil":"Früchte","von":10,"bis":10,"verarbeitung":"Gelee, Quittenbrot","warnung":null},{"name":"Weintraube","teil":"Früchte","von":9,"bis":10,"verarbeitung":"Traubengelee, Saft","warnung":null},{"name":"Weißkohl","teil":"Kopf","von":9,"bis":11,"verarbeitung":"Sauerkraut (2 % Salz, 3–6 Wochen gären), Krautsalat, Kohlrouladen","warnung":null},{"name":"Spitzkohl","teil":"Kopf","von":6,"bis":10,"verarbeitung":"Schnelles, mildes Sauerkraut, Krautsalat","warnung":null},{"name":"Rotkohl","teil":"Kopf","von":9,"bis":11,"verarbeitung":"Apfelrotkohl einkochen oder einfrieren, fermentiert","warnung":null},{"name":"Chinakohl","teil":"Kopf","von":10,"bis":11,"verarbeitung":"Kimchi","warnung":null},{"name":"Grünkohl","teil":"Blätter","von":11,"bis":2,"verarbeitung":"Blanchieren und einfrieren, Grünkohlchips (nach Frost süßer)","warnung":null},{"name":"Rosenkohl","teil":"Röschen","von":10,"bis":2,"verarbeitung":"Einfrieren, fermentiert","warnung":null},{"name":"Gurke","teil":"Früchte","von":7,"bis":8,"verarbeitung":"Gewürzgurken, Salzgurken (milchsauer), Senfgurken","warnung":null},{"name":"Gartenbohne","teil":"Hülsen","von":7,"bis":9,"verarbeitung":"Schnippelbohnen (fermentiert)","warnung":"Roh giftig – vor dem Essen kochen; nicht pur im Wasserbad einkochen"},{"name":"Zucchini","teil":"Früchte","von":6,"bis":9,"verarbeitung":"Relish, süß-sauer, Chutney","warnung":null},{"name":"Tomate","teil":"Reife Früchte","von":7,"bis":9,"verarbeitung":"Passata, Ketchup, getrocknet in Öl","warnung":null},{"name":"Tomate","teil":"Grüne Früchte (Saisonende)","von":10,"bis":10,"verarbeitung":"Chutney, Marmelade mit Ingwer","warnung":"Nicht in großen Mengen essen"},{"name":"Paprika / Chili","teil":"Schoten","von":8,"bis":10,"verarbeitung":"Ajvar, fermentierte Chilisoße, Chiliflocken","warnung":null},{"name":"Rote Bete","teil":"Knolle","von":8,"bis":10,"verarbeitung":"Süß-sauer einlegen, fermentieren, Chips","warnung":"Ohne Essig nicht pur im Wasserbad einkochen"},{"name":"Möhre","teil":"Wurzel","von":7,"bis":10,"verarbeitung":"Fermentierte Möhrensticks mit Dill oder Ingwer","warnung":null},{"name":"Kürbis","teil":"Früchte","von":9,"bis":10,"verarbeitung":"Süß-sauer eingelegt, Chutney, Kürbis-Orangen-Marmelade","warnung":"Säurearm – nicht pur im Wasserbad einkochen"},{"name":"Zwiebel","teil":"Zwiebeln","von":8,"bis":9,"verarbeitung":"Zwiebelconfit, Chutney","warnung":null},{"name":"Knoblauch","teil":"Knollen","von":7,"bis":7,"verarbeitung":"In Honig fermentiert, schwarzer Knoblauch","warnung":null},{"name":"Meerrettich","teil":"Wurzel","von":10,"bis":3,"verarbeitung":"Frisch reiben, mit Essig und Salz einmachen","warnung":null},{"name":"Topinambur","teil":"Knollen","von":10,"bis":3,"verarbeitung":"Roh, Suppe, Chips","warnung":null},{"name":"Bitterorange (Sevilla)","teil":"Früchte","von":1,"bis":2,"verarbeitung":"Englische Marmalade; ganz einfrieren und später kochen","warnung":null},{"name":"Blutorange","teil":"Früchte","von":1,"bis":3,"verarbeitung":"Marmelade, Sirup, Curd","warnung":null},{"name":"Bergamotte","teil":"Früchte","von":11,"bis":1,"verarbeitung":"Marmelade, aromatisierter Zucker","warnung":null},{"name":"Kumquat","teil":"Früchte","von":12,"bis":3,"verarbeitung":"Kandiert, Kompott in Sirup","warnung":null},{"name":"Zitrone","teil":"Früchte","von":12,"bis":3,"verarbeitung":"Salzzitronen, Lemon Curd","warnung":null},{"name":"Granatapfel","teil":"Früchte","von":10,"bis":1,"verarbeitung":"Gelee, Grenadine-Sirup","warnung":null},{"name":"Aprikose","teil":"Früchte","von":6,"bis":7,"verarbeitung":"Marillenmarmelade","warnung":null},{"name":"Weinbergpfirsich","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Marmelade","warnung":null},{"name":"Speisemorchel","teil":"Fruchtkörper","von":4,"bis":5,"verarbeitung":"Rahmsoße, getrocknet","warnung":"Roh giftig; geschützt (nur kleine Mengen); Verwechslung mit Frühjahrslorchel"},{"name":"Pfifferling / Kantarell","teil":"Fruchtkörper","von":6,"bis":10,"verarbeitung":"Rahmsoße, Rührei, Einlegen; schwed. Kantarelltoast","warnung":"Geschützt (nur kleine Mengen); Verwechslung mit Falschem Pfifferling"},{"name":"Steinpilz","teil":"Fruchtkörper","von":7,"bis":10,"verarbeitung":"Braten, Trocknen (Pilzpulver), Carpaccio","warnung":"Geschützt (nur kleine Mengen); Verwechslung mit Gallenröhrling (bitter)"},{"name":"Parasol","teil":"Fruchtkörper","von":7,"bis":10,"verarbeitung":"Hut paniert als „Schnitzel“","warnung":"Verwechslung mit kleinen, tödlich giftigen Schirmlingen – nur große Exemplare mit verschiebbarem Ring"},{"name":"Riesenbovist","teil":"Fruchtkörper","von":7,"bis":10,"verarbeitung":"In Scheiben paniert – nur solange innen schneeweiß","warnung":"Junge Knollenblätterpilze im Ei-Stadium sehen ähnlich aus"},{"name":"Maronenröhrling","teil":"Fruchtkörper","von":8,"bis":11,"verarbeitung":"Braten, Trocknen, Einfrieren","warnung":null},{"name":"Krause Glucke","teil":"Fruchtkörper","von":8,"bis":10,"verarbeitung":"Braten – gründlich putzen","warnung":null},{"name":"Hallimasch","teil":"Fruchtkörper","von":9,"bis":11,"verarbeitung":"Mindestens 15 Minuten garen","warnung":"Roh giftig, auch gegart nicht für alle verträglich; Verwechslung mit Gifthäubling, Schwefelkopf"},{"name":"Stockschwamm","teil":"Fruchtkörper","von":9,"bis":11,"verarbeitung":"Suppe","warnung":"Gifthäubling sieht fast identisch aus und ist tödlich – nur für sehr Erfahrene"},{"name":"Austernseitling","teil":"Fruchtkörper","von":11,"bis":3,"verarbeitung":"Braten, Asia-Pfanne","warnung":null},{"name":"Samtfußrübling","teil":"Fruchtkörper","von":11,"bis":3,"verarbeitung":"Braten, Asia-Pfanne","warnung":"Verwechslung mit Gifthäubling"},{"name":"Judasohr","teil":"Fruchtkörper","von":1,"bis":12,"verarbeitung":"Asiatische Küche, Trocknen","warnung":null},{"name":"Preiselbeere / Lingon","teil":"Früchte","von":8,"bis":9,"verarbeitung":"Rårörda lingon (roh mit Zucker), Lingonsylt zu Köttbullar und Pfannkuchen, Saft","warnung":null},{"name":"Moltebeere / Hjortron","teil":"Früchte","von":7,"bis":8,"verarbeitung":"Sylt zu Waffeln, warm über Vanilleeis","warnung":null},{"name":"Trompetenpfifferling / Trattkantarell","teil":"Fruchtkörper","von":8,"bis":11,"verarbeitung":"Trocknen, Soße","warnung":null}]
+;
+const BASTEL_DATA = [{"monat":1,"kategorie":"Bauen","eintrag":"Vogel-Nistkasten","hinweis":null,"icon":"01_januar_nistkasten.png"},{"monat":1,"kategorie":"Basteln","eintrag":"Meisenknödel gießen","hinweis":null,"icon":"01_januar_meisenknoedel.png"},{"monat":1,"kategorie":"Basteln","eintrag":"Faschingskostüm planen und nähen","hinweis":null,"icon":"02_februar_fastnachtsmaske.png"},{"monat":1,"kategorie":"Küche","eintrag":"Sauerteig ansetzen","hinweis":null,"icon":null},{"monat":1,"kategorie":"Küche","eintrag":"Dreikönigskuchen","hinweis":null,"icon":null},{"monat":2,"kategorie":"Bauen","eintrag":"Insekten-Nisthilfe","hinweis":null,"icon":"02_februar_insekten-nisthilfe.png"},{"monat":2,"kategorie":"Bauen","eintrag":"Anzuchtkasten","hinweis":null,"icon":null},{"monat":2,"kategorie":"Bauen","eintrag":"Blumenpresse bauen","hinweis":null,"icon":"02_februar_blumenpresse.png"},{"monat":2,"kategorie":"Basteln","eintrag":"Fastnachtsmasken","hinweis":null,"icon":null},{"monat":2,"kategorie":"Basteln","eintrag":"Anzuchttöpfe aus Zeitungspapier","hinweis":null,"icon":null},{"monat":2,"kategorie":"Küche","eintrag":"Kreppel","hinweis":null,"icon":"02_februar_kreppel.png"},{"monat":2,"kategorie":"Küche","eintrag":"Semlor","hinweis":null,"icon":"02_februar_semla.png"},{"monat":2,"kategorie":"Blumenpresse","eintrag":"Krokus","hinweis":null,"icon":"Thomé"},{"monat":2,"kategorie":"Blumenpresse","eintrag":"Schneeglöckchen","hinweis":null,"icon":"Sturm"},{"monat":3,"kategorie":"Bauen","eintrag":"Hochbeet oder Frühbeet","hinweis":null,"icon":null},{"monat":3,"kategorie":"Bauen","eintrag":"Rankgitter","hinweis":null,"icon":null},{"monat":3,"kategorie":"Basteln","eintrag":"Saatbänder","hinweis":null,"icon":null},{"monat":3,"kategorie":"Basteln","eintrag":"Pflanzschilder","hinweis":null,"icon":null},{"monat":3,"kategorie":"Küche","eintrag":"Bärlauchpesto, Bärlauchbutter","hinweis":null,"icon":"03_maerz_baerlauchpesto.png"},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Gänseblümchen","hinweis":"Sturm","icon":null},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Veilchen","hinweis":"Sturm","icon":null},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Huflattich","hinweis":null,"icon":null},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Vogelmiere","hinweis":"Tafel zeigt mehrere Sternmieren","icon":"Sturm"},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Bärlauch","hinweis":"neben Maiglöckchen pressen","icon":"Thomé"},{"monat":3,"kategorie":"Blumenpresse","eintrag":"Maiglöckchen","hinweis":"Verwechslungspartner zu Bärlauch","icon":"Thomé"},{"monat":4,"kategorie":"Bauen","eintrag":"Kräuterspirale","hinweis":null,"icon":null},{"monat":4,"kategorie":"Bauen","eintrag":"Regentonne anschließen","hinweis":null,"icon":null},{"monat":4,"kategorie":"Basteln","eintrag":"Ostereier natürlich färben","hinweis":null,"icon":"04_april_ostereier.png"},{"monat":4,"kategorie":"Küche","eintrag":"Grüne Soße","hinweis":null,"icon":"04_april_gruene-sosse.png"},{"monat":4,"kategorie":"Küche","eintrag":"Osterlamm","hinweis":null,"icon":null},{"monat":4,"kategorie":"Blumenpresse","eintrag":"Wiesenschaumkraut","hinweis":"Tafel zeigt mehrere Arten","icon":"Sturm"},{"monat":4,"kategorie":"Blumenpresse","eintrag":"Gundermann","hinweis":"Sturm","icon":null},{"monat":4,"kategorie":"Blumenpresse","eintrag":"Taubnessel","hinweis":"Sturm","icon":null},{"monat":4,"kategorie":"Blumenpresse","eintrag":"Knoblauchsrauke","hinweis":"keine Tafel gefunden","icon":"Fotos öffnen"},{"monat":4,"kategorie":"Blumenpresse","eintrag":"Löwenzahnblatt","hinweis":"Sturm","icon":null},{"monat":5,"kategorie":"Bauen","eintrag":"Wurmkiste","hinweis":null,"icon":null},{"monat":5,"kategorie":"Bauen","eintrag":"Pflanztisch","hinweis":null,"icon":null},{"monat":5,"kategorie":"Küche","eintrag":"Holunderblütensirup","hinweis":null,"icon":null},{"monat":5,"kategorie":"Küche","eintrag":"Waldmeister","hinweis":null,"icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Vergissmeinnicht","hinweis":null,"icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Ehrenpreis","hinweis":null,"icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Hahnenfuß","hinweis":"Sturm","icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Holunderblütendolde","hinweis":"nur Blüten roh; Beeren nur gekocht","icon":"Sturm"},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Giersch","hinweis":"Sturm","icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Spitzwegerich","hinweis":"Sturm","icon":null},{"monat":5,"kategorie":"Blumenpresse","eintrag":"Weißklee, Kleeblätter","hinweis":"gut für Kinder; vierblättrige suchen","icon":"Thomé"},{"monat":6,"kategorie":"Bauen","eintrag":"Vogeltränke","hinweis":null,"icon":null},{"monat":6,"kategorie":"Bauen","eintrag":"Insektentränke","hinweis":null,"icon":null},{"monat":6,"kategorie":"Basteln","eintrag":"Blumenkranz zu Midsommar","hinweis":null,"icon":null},{"monat":6,"kategorie":"Küche","eintrag":"Erdbeermarmelade","hinweis":null,"icon":null},{"monat":6,"kategorie":"Küche","eintrag":"Rhabarber","hinweis":null,"icon":null},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Margerite","hinweis":null,"icon":null},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Klatschmohn","hinweis":null,"icon":"Sturm"},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Kornblume","hinweis":null,"icon":null},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Rotklee","hinweis":"Sturm","icon":null},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Storchschnabel","hinweis":null,"icon":"Fotos öffnen"},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Sauerampfer","hinweis":"Sturm","icon":null},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Brennnessel","hinweis":"mit Handschuhen pflücken","icon":"Svensk botanik"},{"monat":6,"kategorie":"Blumenpresse","eintrag":"Lavendel","hinweis":null,"icon":null},{"monat":7,"kategorie":"Bauen","eintrag":"Dörrgestell oder Solartrockner","hinweis":null,"icon":null},{"monat":7,"kategorie":"Basteln","eintrag":"Sonnendruck (Cyanotypie)","hinweis":null,"icon":null},{"monat":7,"kategorie":"Basteln","eintrag":"Pflanzenfarben","hinweis":null,"icon":null},{"monat":7,"kategorie":"Küche","eintrag":"Kirschen und Johannisbeeren einkochen","hinweis":null,"icon":null},{"monat":7,"kategorie":"Küche","eintrag":"Kräuter trocknen","hinweis":null,"icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Schafgarbe","hinweis":"Sturm","icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Wilde Möhre","hinweis":null,"icon":"Sturm"},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Schierling","hinweis":"Verwechslungspartner zu Wilder Möhre","icon":"Sturm"},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Kamille","hinweis":null,"icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Glockenblume","hinweis":null,"icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Ringelblume","hinweis":"Sturm","icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Wilder Thymian","hinweis":"Thomé","icon":null},{"monat":7,"kategorie":"Blumenpresse","eintrag":"Dost","hinweis":"Sturm","icon":null},{"monat":8,"kategorie":"Bauen","eintrag":"Lagerkiste für Kartoffeln und Äpfel","hinweis":null,"icon":null},{"monat":8,"kategorie":"Basteln","eintrag":"Lavendelsäckchen","hinweis":null,"icon":null},{"monat":8,"kategorie":"Küche","eintrag":"Blaubeeren","hinweis":null,"icon":null},{"monat":8,"kategorie":"Küche","eintrag":"Kräftskiva","hinweis":null,"icon":"08_august_kraeftskiva.png"},{"monat":8,"kategorie":"Blumenpresse","eintrag":"Wegwarte","hinweis":"Sturm","icon":null},{"monat":8,"kategorie":"Blumenpresse","eintrag":"Rainfarn","hinweis":"Sturm","icon":null},{"monat":8,"kategorie":"Blumenpresse","eintrag":"Heidekraut","hinweis":null,"icon":null},{"monat":8,"kategorie":"Blumenpresse","eintrag":"Kosmeen","hinweis":null,"icon":"Fotos öffnen"},{"monat":9,"kategorie":"Bauen","eintrag":"Komposter oder Laubsilo","hinweis":null,"icon":null},{"monat":9,"kategorie":"Basteln","eintrag":"Kastanien- und Eichelfiguren","hinweis":null,"icon":null},{"monat":9,"kategorie":"Basteln","eintrag":"Halloween-Kostüm planen","hinweis":null,"icon":"10_oktober_halloween-kuerbis.png"},{"monat":9,"kategorie":"Küche","eintrag":"Quetschekuche","hinweis":null,"icon":null},{"monat":9,"kategorie":"Küche","eintrag":"Pflaumenmus","hinweis":null,"icon":null},{"monat":9,"kategorie":"Küche","eintrag":"Feigen","hinweis":null,"icon":null},{"monat":9,"kategorie":"Blumenpresse","eintrag":"Herbstastern","hinweis":null,"icon":"Fotos öffnen"},{"monat":9,"kategorie":"Blumenpresse","eintrag":"Brombeerblätter","hinweis":"als Tee; keine Tafel gefunden","icon":"Fotos öffnen"},{"monat":10,"kategorie":"Bauen","eintrag":"Igelhaus","hinweis":null,"icon":null},{"monat":10,"kategorie":"Bauen","eintrag":"Nistkästen reinigen","hinweis":null,"icon":null},{"monat":10,"kategorie":"Basteln","eintrag":"Kürbis schnitzen","hinweis":null,"icon":null},{"monat":10,"kategorie":"Basteln","eintrag":"Halloween-Kostüm fertigstellen","hinweis":null,"icon":"10_oktober_halloween-kuerbis.png"},{"monat":10,"kategorie":"Basteln","eintrag":"Laternen für St. Martin","hinweis":null,"icon":"11_november_martinslaterne.png"},{"monat":10,"kategorie":"Küche","eintrag":"Apfelmus","hinweis":null,"icon":null},{"monat":10,"kategorie":"Küche","eintrag":"Hagebutten","hinweis":null,"icon":null},{"monat":10,"kategorie":"Küche","eintrag":"Kanelbullar","hinweis":null,"icon":"10_oktober_kanelbullar.png"},{"monat":10,"kategorie":"Blumenpresse","eintrag":"Ahornlaub","hinweis":null,"icon":null},{"monat":10,"kategorie":"Blumenpresse","eintrag":"Ginkgolaub","hinweis":null,"icon":"Fotos öffnen"},{"monat":10,"kategorie":"Blumenpresse","eintrag":"Eichenlaub","hinweis":null,"icon":null},{"monat":10,"kategorie":"Blumenpresse","eintrag":"Feigenblätter","hinweis":null,"icon":null},{"monat":11,"kategorie":"Bauen","eintrag":"Futterhaus","hinweis":null,"icon":"11_november_futterhaus.png"},{"monat":11,"kategorie":"Bauen","eintrag":"Frostschutz für die Feige","hinweis":null,"icon":null},{"monat":11,"kategorie":"Bauen","eintrag":"Adventskalender","hinweis":null,"icon":"11_november_adventskalender.png"},{"monat":11,"kategorie":"Basteln","eintrag":"Adventskranz binden","hinweis":null,"icon":"11_november_adventskranz.png"},{"monat":11,"kategorie":"Küche","eintrag":"Weckmänner","hinweis":null,"icon":null},{"monat":11,"kategorie":"Küche","eintrag":"Quittengelee","hinweis":null,"icon":null},{"monat":11,"kategorie":"Küche","eintrag":"Plätzchenteig vorbereiten","hinweis":null,"icon":null},{"monat":11,"kategorie":"Blumenpresse","eintrag":"Gepresstes verarbeiten","hinweis":null,"icon":"02_februar_blumenpresse.png"},{"monat":11,"kategorie":"Küche","eintrag":"Lebkuchenhaus","hinweis":null,"icon":"12_dezember_lebkuchenhaus.png"},{"monat":12,"kategorie":"Bauen","eintrag":"Julbock aus Stroh","hinweis":null,"icon":null},{"monat":12,"kategorie":"Basteln","eintrag":"Strohsterne","hinweis":null,"icon":null},{"monat":12,"kategorie":"Basteln","eintrag":"Geschenke","hinweis":null,"icon":null},{"monat":12,"kategorie":"Küche","eintrag":"Plätzchen","hinweis":null,"icon":null},{"monat":12,"kategorie":"Küche","eintrag":"Lussekatter","hinweis":null,"icon":"12_dezember_lussekatt.png"},{"monat":12,"kategorie":"Küche","eintrag":"Alkoholfreier Glögg oder Kinderpunsch","hinweis":null,"icon":null},{"monat":12,"kategorie":"Küche","eintrag":"Stollen","hinweis":null,"icon":null},{"monat":12,"kategorie":"Blumenpresse","eintrag":"Geschenkanhänger, Weihnachtskarten","hinweis":null,"icon":"02_februar_blumenpresse.png"}]
+;
+const FISCH_DATA = [
+    {
+        "art":  "Aal",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "15.09. – 01.03.",
+        "uberJahr":  null,
+        "schonBegMon":  9,
+        "schonEndMon":  3,
+        "mindestmass":  "50",
+        "bild":  "aal.png",
+        "bemerkung":  "laicht im Meer (Sargassosee)"
+    },
+    {
+        "art":  "Äsche",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.03. – 15.05.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  5,
+        "mindestmass":  "30",
+        "bild":  "aesche.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Forelle (Bach-, Meer-, Seeforelle)",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.10. – 31.03.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  3,
+        "mindestmass":  "25",
+        "bild":  "bachforelle.png",
+        "bemerkung":  "gilt für alle Formen von Salmo trutta"
+    },
+    {
+        "art":  "Barbe",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.05. – 30.06.",
+        "uberJahr":  null,
+        "schonBegMon":  5,
+        "schonEndMon":  6,
+        "mindestmass":  "40",
+        "bild":  "barbe.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Hecht",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.02. – 15.04.",
+        "uberJahr":  null,
+        "schonBegMon":  2,
+        "schonEndMon":  4,
+        "mindestmass":  "50",
+        "bild":  "hecht.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Karpfen (Wildform)",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "15.03. – 31.05.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  5,
+        "mindestmass":  "45",
+        "bild":  "karpfen_wildform.png",
+        "bemerkung":  "Teichformen nicht erfasst"
+    },
+    {
+        "art":  "Moderlieschen",
+        "region":  "Hessen",
+        "status":  "Schonzeit",
+        "schonzeitText":  "01.05. – 30.06.",
+        "uberJahr":  null,
+        "schonBegMon":  5,
+        "schonEndMon":  6,
+        "mindestmass":  null,
+        "bild":  "moderlieschen.png",
+        "bemerkung":  "kein Entnahmemaß"
+    },
+    {
+        "art":  "Nase",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "15.03. – 30.04.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  4,
+        "mindestmass":  "25",
+        "bild":  "nase.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Rotfeder",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "15.03. – 31.05.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  5,
+        "mindestmass":  "20",
+        "bild":  "rotfeder.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Schleie",
+        "region":  "Hessen",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.05. – 30.06.",
+        "uberJahr":  null,
+        "schonBegMon":  5,
+        "schonEndMon":  6,
+        "mindestmass":  "25",
+        "bild":  "schleie.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Zander",
+        "region":  "Hessen",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "50",
+        "bild":  "zander.png",
+        "bemerkung":  "keine Schonzeit"
+    },
+    {
+        "art":  "Atlantischer Lachs",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "lachs.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Atlantischer Stör",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Bitterling",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "bitterling.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Elritze",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "elritze.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Flunder",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "flunder.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Karausche",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "karausche.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Groppe (Koppe)",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "groppe.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Maifisch",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "maifisch.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Quappe",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "quappe_unsicher.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Rheinfelchen",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Schlammpeitzger",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "schlammpeitzger.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Schneider",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "schneider.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Steinbeißer",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "steinbeisser.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Strömer",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Zährte",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "zaehrte.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Zwergstichling",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "zwergstichling.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Bachneunauge",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Flussneunauge",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Meerneunauge",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Edelkrebs",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "edelkrebs.png",
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Steinkrebs",
+        "region":  "Hessen",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "Fang- und Entnahmeverbot"
+    },
+    {
+        "art":  "Aland",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "aland.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Bachsaibling",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "bachsaibling.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Brasse (Blei)",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "brasse.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Döbel",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "doebel.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Flussbarsch",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "flussbarsch.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Giebel",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "giebel.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Gründling",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "gruendling.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Güster",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "guester.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Hasel",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "hasel.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Kaulbarsch",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "kaulbarsch.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Rapfen",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "rapfen.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Regenbogenforelle",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "regenbogenforelle.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Rotauge",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "rotauge.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Schmerle",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "schmerle.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Ukelei",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "ukelei.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Wels",
+        "region":  "Hessen",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  "wels.png",
+        "bemerkung":  "keine Schonzeit, kein Maß laut HFischV; Pachtgewässer können Regeln setzen"
+    },
+    {
+        "art":  "Dorsch",
+        "region":  "MV",
+        "status":  "EU-Angelverbot 2026",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "dorsch.png",
+        "bemerkung":  "Beifang sofort zurücksetzen; Landesrecht 35 cm ruht"
+    },
+    {
+        "art":  "Aal",
+        "region":  "MV",
+        "status":  "EU-Angelverbot",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "aal.png",
+        "bemerkung":  "gilt auch in Bodden/Brackwasser"
+    },
+    {
+        "art":  "Hecht",
+        "region":  "MV",
+        "status":  "Schonzeit + Entnahmefenster",
+        "schonzeitText":  "01.03. – 30.04.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  4,
+        "mindestmass":  "60",
+        "bild":  "hecht.png",
+        "bemerkung":  "Entnahmefenster neu seit 29.09.2026"
+    },
+    {
+        "art":  "Zander",
+        "region":  "MV",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "23.04. – 22.05.",
+        "uberJahr":  null,
+        "schonBegMon":  4,
+        "schonEndMon":  5,
+        "mindestmass":  "45",
+        "bild":  "zander.png",
+        "bemerkung":  "40 cm in Darßer Boddenkette, Peenestrom, Stettiner Haff; Schonzeit-Zuordnung prüfen"
+    },
+    {
+        "art":  "Meerforelle",
+        "region":  "MV",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "15.09. – 14.12.",
+        "uberJahr":  null,
+        "schonBegMon":  9,
+        "schonEndMon":  12,
+        "mindestmass":  "48",
+        "bild":  "meerforelle.png",
+        "bemerkung":  "48 cm neu seit 29.09.2026; Schonzeit aus Broschüre, Spaltenzuordnung prüfen"
+    },
+    {
+        "art":  "Lachs",
+        "region":  "MV",
+        "status":  "Wildlachs EU-Verbot",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  "60",
+        "bild":  "lachs.png",
+        "bemerkung":  "nur Besatzlachs (Fettflossenschnitt) 1/Tag"
+    },
+    {
+        "art":  "Barsch",
+        "region":  "MV",
+        "status":  "Mindestmaß + Tageslimit",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "20",
+        "bild":  "flussbarsch.png",
+        "bemerkung":  "Tageslimit neu seit 29.09.2026"
+    },
+    {
+        "art":  "Quappe",
+        "region":  "MV",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.01. – 15.02.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  2,
+        "mindestmass":  "30",
+        "bild":  "quappe_unsicher.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Flunder",
+        "region":  "MV",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "25",
+        "bild":  "flunder.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Scholle",
+        "region":  "MV",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "25",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Kliesche",
+        "region":  "MV",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "25",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Steinbutt",
+        "region":  "MV",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  "Landes-Schonzeit entfallen seit 29.09.2026"
+    },
+    {
+        "art":  "Glattbutt",
+        "region":  "MV",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Ostseeschnäpel",
+        "region":  "MV",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.11. – 30.11.",
+        "uberJahr":  null,
+        "schonBegMon":  11,
+        "schonEndMon":  11,
+        "mindestmass":  "40",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Finte",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Maifisch",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "maifisch.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Stör",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Flussneunauge",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meerneunauge",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Zährte",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "zaehrte.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Ziege",
+        "region":  "MV",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Hering",
+        "region":  "MV",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "keine Landesregel gefunden"
+    },
+    {
+        "art":  "Hornhecht",
+        "region":  "MV",
+        "status":  "keine gesetzliche Regel",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  "keine Landesregel gefunden"
+    },
+    {
+        "art":  "Dorsch",
+        "region":  "SH",
+        "status":  "EU-Angelverbot 2026",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  "38",
+        "bild":  "dorsch.png",
+        "bemerkung":  "Landesrecht 38 cm ruht 2026"
+    },
+    {
+        "art":  "Dorsch",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "35",
+        "bild":  "dorsch.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Aal",
+        "region":  "SH",
+        "status":  "EU-Angelverbot",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  "45",
+        "bild":  "aal.png",
+        "bemerkung":  "Landesrecht 45 cm ruht"
+    },
+    {
+        "art":  "Lachs",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.10. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  12,
+        "mindestmass":  "60",
+        "bild":  "lachs.png",
+        "bemerkung":  "Schonzeit nur für Fische im Laichkleid; Ostsee: Wildlachs zurücksetzen, max. 1 Besatzlachs/Tag (EU)"
+    },
+    {
+        "art":  "Meerforelle",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.10. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  12,
+        "mindestmass":  "40",
+        "bild":  "meerforelle.png",
+        "bemerkung":  "Schonzeit nur im Laichkleid; silbrige Fische mit losen Schuppen ausgenommen"
+    },
+    {
+        "art":  "Bachforelle",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.10. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  12,
+        "mindestmass":  "40",
+        "bild":  "bachforelle.png",
+        "bemerkung":  "Schonzeit nur im Laichkleid"
+    },
+    {
+        "art":  "Hecht",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "15.02. – 30.04.",
+        "uberJahr":  null,
+        "schonBegMon":  2,
+        "schonEndMon":  4,
+        "mindestmass":  "45",
+        "bild":  "hecht.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Zander",
+        "region":  "SH",
+        "status":  "Mindestmaß (+ Schonzeit Elbe)",
+        "schonzeitText":  "15.02. – 15.05.",
+        "uberJahr":  null,
+        "schonBegMon":  2,
+        "schonEndMon":  5,
+        "mindestmass":  "40",
+        "bild":  "zander.png",
+        "bemerkung":  "Schonzeit nur in Elbe und Nebengewässern"
+    },
+    {
+        "art":  "Wels",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "70",
+        "bild":  "wels.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Quappe",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "quappe_unsicher.png",
+        "bemerkung":  "nur in Elbe und Nebengewässern"
+    },
+    {
+        "art":  "Aalmutter",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "15.09. – 31.01.",
+        "uberJahr":  null,
+        "schonBegMon":  9,
+        "schonEndMon":  1,
+        "mindestmass":  "23",
+        "bild":  null,
+        "bemerkung":  "lebendgebärend"
+    },
+    {
+        "art":  "Hering",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "20",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Hering",
+        "region":  "SH",
+        "status":  "Regel ausgesetzt bis 31.12.2026",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "11",
+        "bild":  null,
+        "bemerkung":  "Mindestmaß per Allgemeinverfügung aufgehoben"
+    },
+    {
+        "art":  "Scholle",
+        "region":  "SH",
+        "status":  "Mindestmaß + Schonzeit (♀)",
+        "schonzeitText":  "01.02. – 30.04.",
+        "uberJahr":  null,
+        "schonBegMon":  2,
+        "schonEndMon":  4,
+        "mindestmass":  "27",
+        "bild":  null,
+        "bemerkung":  "Schonzeit nur für weibliche Schollen"
+    },
+    {
+        "art":  "Scholle",
+        "region":  "SH",
+        "status":  "Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "25",
+        "bild":  null,
+        "bemerkung":  "Schonzeit ♀ per Allgemeinverfügung bis 31.12.2026 aufgehoben"
+    },
+    {
+        "art":  "Flunder",
+        "region":  "SH",
+        "status":  "Mindestmaß + Schonzeit (♀)",
+        "schonzeitText":  "01.02. – 30.04.",
+        "uberJahr":  null,
+        "schonBegMon":  2,
+        "schonEndMon":  4,
+        "mindestmass":  "25",
+        "bild":  "flunder.png",
+        "bemerkung":  "Schonzeit nur für weibliche Flundern"
+    },
+    {
+        "art":  "Flunder",
+        "region":  "SH",
+        "status":  "Regel ausgesetzt bis 31.12.2026",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "25",
+        "bild":  "flunder.png",
+        "bemerkung":  "Mindestmaß und Schonzeit ♀ per Allgemeinverfügung aufgehoben"
+    },
+    {
+        "art":  "Steinbutt",
+        "region":  "SH",
+        "status":  "Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  "Schonzeit 1.6.–31.7. per Allgemeinverfügung bis 31.12.2026 aufgehoben"
+    },
+    {
+        "art":  "Glattbutt",
+        "region":  "SH",
+        "status":  "Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  "Schonzeit 1.6.–31.7. per Allgemeinverfügung bis 31.12.2026 aufgehoben"
+    },
+    {
+        "art":  "Kliesche",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "23",
+        "bild":  null,
+        "bemerkung":  "Ostsee: per Allgemeinverfügung aufgehoben"
+    },
+    {
+        "art":  "Seezunge",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "24",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Wittling",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "27",
+        "bild":  null,
+        "bemerkung":  "Ostsee 23 cm per Allgemeinverfügung aufgehoben"
+    },
+    {
+        "art":  "Schellfisch",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Makrele",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  "makrele_unsicher.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Finte",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meeräsche",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "40",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Wolfsbarsch",
+        "region":  "SH",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "42",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Ostseeschnäpel",
+        "region":  "SH",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.12. – 28.02.",
+        "uberJahr":  null,
+        "schonBegMon":  12,
+        "schonEndMon":  2,
+        "mindestmass":  "40",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Stör",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Maifisch",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "maifisch.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Nordseeschnäpel",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meerneunauge",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Flussneunauge",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Zährte",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "zaehrte.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Edelkrebs",
+        "region":  "SH",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "edelkrebs.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Aal",
+        "region":  "NI",
+        "status":  "EU-Angelverbot",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  "45",
+        "bild":  "aal.png",
+        "bemerkung":  "gilt auch in Mündungs-/Übergangsgewässern; Landesrecht 45 cm ruht"
+    },
+    {
+        "art":  "Lachs",
+        "region":  "NI",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.10. – 15.03.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  3,
+        "mindestmass":  "60",
+        "bild":  "lachs.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meerforelle",
+        "region":  "NI",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "01.10. – 15.02.",
+        "uberJahr":  null,
+        "schonBegMon":  10,
+        "schonEndMon":  2,
+        "mindestmass":  "40",
+        "bild":  "meerforelle.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Hecht",
+        "region":  "NI",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "45",
+        "bild":  "hecht.png",
+        "bemerkung":  "keine Schonzeit"
+    },
+    {
+        "art":  "Zander",
+        "region":  "NI",
+        "status":  "Schonzeit + Mindestmaß",
+        "schonzeitText":  "15.03. – 15.05.",
+        "uberJahr":  null,
+        "schonBegMon":  3,
+        "schonEndMon":  5,
+        "mindestmass":  "40",
+        "bild":  "zander.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meeräsche",
+        "region":  "NI",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "40",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Steinbutt",
+        "region":  "NI",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Glattbutt",
+        "region":  "NI",
+        "status":  "nur Mindestmaß",
+        "schonzeitText":  "",
+        "uberJahr":  null,
+        "schonBegMon":  null,
+        "schonEndMon":  null,
+        "mindestmass":  "30",
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Stör",
+        "region":  "NI",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Maifisch",
+        "region":  "NI",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "maifisch.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Nordseeschnäpel",
+        "region":  "NI",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  null,
+        "bemerkung":  null
+    },
+    {
+        "art":  "Flussneunauge",
+        "region":  "NI",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    },
+    {
+        "art":  "Meerneunauge",
+        "region":  "NI",
+        "status":  "ganzjährig geschützt",
+        "schonzeitText":  "01.01. – 31.12.",
+        "uberJahr":  null,
+        "schonBegMon":  1,
+        "schonEndMon":  12,
+        "mindestmass":  null,
+        "bild":  "neunauge.png",
+        "bemerkung":  null
+    }
+];
+
+function openPrintDialog() {
+  const dlg = document.getElementById('printDialog');
+  const mi = document.getElementById('printMonthInput');
+  const yi = document.getElementById('printYearInput');
+  if (!mi.value) {
+    const now = new Date();
+    mi.value = String(now.getMonth() + 1).padStart(2,'0');
+    yi.value = String(now.getFullYear());
+  }
+  dlg.style.display = 'flex';
+  updateThemePreview();
+}
+function closePrintDialog() {
+  document.getElementById('printDialog').style.display = 'none';
+}
+function updateThemePreview() {
+  const m = parseInt(document.getElementById('printMonthInput').value) || (new Date().getMonth()+1);
+  const auto = document.getElementById('themeAuto').checked;
+  const chkErnte = document.getElementById('themeErnte');
+  const chkBastel = document.getElementById('themeBastel');
+  const chkFisch = document.getElementById('themeFisch');
+  if (auto) {
+    chkErnte.checked = true; chkBastel.checked = true; chkFisch.checked = true;
+    chkErnte.disabled = true; chkBastel.disabled = true; chkFisch.disabled = true;
+  } else {
+    chkErnte.disabled = false; chkBastel.disabled = false; chkFisch.disabled = false;
+  }
+}
+
+function getErnteForMonth(m) {
+  return ERNTE_DATA.filter(e => {
+    const von = parseInt(e.von) || 1, bis = parseInt(e.bis) || 12;
+    if (von <= bis) return m >= von && m <= bis;
+    return m >= von || m <= bis;
+  });
+}
+function getBastelForMonth(m) {
+  return BASTEL_DATA.filter(e => parseInt(e.monat) === m);
+}
+function getFischForMonth(m) {
+  return FISCH_DATA.filter(e => {
+    if (!e.schonBegMon || !e.schonEndMon) return false;
+    const b = e.schonBegMon, en = e.schonEndMon;
+    if (b <= en) return m >= b && m <= en;
+    return m >= b || m <= en;
+  });
+}
+
+function buildPrintView() {
+  const m = parseInt(document.getElementById('printMonthInput').value);
+  const y = parseInt(document.getElementById('printYearInput').value);
+  const showErnte = document.getElementById('themeErnte').checked;
+  const showBastel = document.getElementById('themeBastel').checked;
+  const showFisch = document.getElementById('themeFisch').checked;
+  if (!m || !y) { alert('Bitte Monat und Jahr wählen.'); return; }
+
+  const MONATE = ['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const TAGE = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+  // Get first day of month and number of days
+  const firstDay = new Date(y, m-1, 1);
+  const lastDay = new Date(y, m, 0);
+  const numDays = lastDay.getDate();
+
+  // Get meetings in this month from tool
+  const monthMeetings = MEETINGS.filter(ev => {
+    if (!ev.date) return false;
+    const d = new Date(ev.date);
+    return d.getFullYear() === y && d.getMonth() + 1 === m;
+  });
+
+  // Theme data
+  const ernte = showErnte ? getErnteForMonth(m) : [];
+  const bastel = showBastel ? getBastelForMonth(m) : [];
+  const fisch = showFisch ? getFischForMonth(m) : [];
+
+  // Build weeks
+  const weeks = [];
+  let cur = new Date(firstDay);
+  // Go back to Monday
+  const dow = cur.getDay();
+  cur.setDate(cur.getDate() - (dow === 0 ? 6 : dow - 1));
+  while (cur <= lastDay) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      week.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    weeks.push(week);
+  }
+
+  const TIME_SLOTS = [];
+  for (let h = 6; h <= 22; h++) TIME_SLOTS.push(h);
+
+  function getMeetingsForDayAndHour(date, hour) {
+    const iso = toLocalISO(date);
+    return monthMeetings.filter(ev => {
+      if (ev.date !== iso) return false;
+      if (!ev.time) return hour === 9;
+      const [hh] = ev.time.split(':').map(Number);
+      return hh === hour;
+    });
+  }
+
+  const flColorMap = { fl1:'#2563EB', fl2:'#7C3AED', fl3:'#059669', lernen:'#D97706', alle:'#64748B' };
+
+  let html = '<div id="printViewContent">';
+
+  // Cover page with theme summary
+  html += '<div class="pv-page pv-cover">';
+  html += '<div class="pv-cover-title">' + MONATE[m] + ' ' + y + '</div>';
+  html += '<div class="pv-cover-sub">Kadenz-Planungstool · ' + (appMode === 'familie' ? 'Familien-Kalender' : 'Team-Kalender') + '</div>';
+  html += '<div class="pv-themes-grid">';
+
+  if (ernte.length) {
+    html += '<div class="pv-theme-box pv-ernte"><div class="pv-theme-title">🌾 Ernte im ' + MONATE[m] + '</div><ul>';
+    const topErnte = ernte.slice(0,16);
+    topErnte.forEach(e => html += '<li>' + e.name + (e.teil ? ' <span class="pv-hint">(' + e.teil + ')</span>' : '') + '</li>');
+    if (ernte.length > 16) html += '<li class="pv-more">…und ' + (ernte.length-16) + ' weitere</li>';
+    html += '</ul></div>';
+  }
+  if (bastel.length) {
+    html += '<div class="pv-theme-box pv-bastel"><div class="pv-theme-title">✂️ Basteln &amp; Küche</div><ul>';
+    const topBastel = bastel.slice(0,14);
+    topBastel.forEach(e => html += '<li>' + e.eintrag + (e.kategorie ? ' <span class="pv-hint">(' + e.kategorie + ')</span>' : '') + '</li>');
+    if (bastel.length > 14) html += '<li class="pv-more">…und ' + (bastel.length-14) + ' weitere</li>';
+    html += '</ul></div>';
+  }
+  if (fisch.length) {
+    html += '<div class="pv-theme-box pv-fisch"><div class="pv-theme-title">🐟 Fisch-Schonzeiten</div><ul>';
+    const topFisch = fisch.filter((f,i) => i < 12 || !fisch.slice(0,i).find(x => x.art === f.art));
+    const uniqFisch = [...new Map(fisch.map(f => [f.art, f])).values()].slice(0,12);
+    uniqFisch.forEach(e => html += '<li>' + e.art + (e.schonzeitText ? ' <span class="pv-hint">' + e.schonzeitText + '</span>' : '') + '</li>');
+    if (fisch.length > 12) html += '<li class="pv-more">…und weitere</li>';
+    html += '</ul></div>';
+  }
+  if (!ernte.length && !bastel.length && !fisch.length) {
+    html += '<div class="pv-theme-box" style="grid-column:1/-1;text-align:center;color:#94a3b8;">Keine Themen ausgewählt</div>';
+  }
+  html += '</div></div>'; // themes-grid, cover page
+
+  // Weekly pages
+  weeks.forEach((week, wi) => {
+    html += '<div class="pv-page pv-week">';
+    html += '<div class="pv-week-header">';
+    html += '<div class="pv-week-title">KW ' + getKW(week[0]) + ' · ' + MONATE[m] + ' ' + y + '</div>';
+    html += '<div class="pv-week-range">' + fmtDate(week[0]) + ' – ' + fmtDate(week[6]) + '</div>';
+    html += '</div>';
+
+    html += '<div class="pv-time-grid">';
+    // Header row
+    html += '<div class="pv-time-header"></div>';
+    week.forEach((day, di) => {
+      const inMonth = day.getMonth() + 1 === m;
+      const dow2 = day.getDay();
+      const isWeekend = dow2 === 0 || dow2 === 6;
+      html += '<div class="pv-day-header ' + (inMonth ? '' : 'pv-out-month') + (isWeekend ? ' pv-weekend' : '') + '">';
+      html += '<span class="pv-day-name">' + TAGE[di] + '</span>';
+      html += '<span class="pv-day-num">' + day.getDate() + '.' + String(day.getMonth()+1).padStart(2,'0') + '.</span>';
+      html += '</div>';
+    });
+
+    // Time rows
+    TIME_SLOTS.forEach(h => {
+      html += '<div class="pv-time-label">' + String(h).padStart(2,'0') + ':00</div>';
+      week.forEach((day, di) => {
+        const dow2 = day.getDay();
+        const isWeekend = dow2 === 0 || dow2 === 6;
+        const inMonth = day.getMonth() + 1 === m;
+        const evts = getMeetingsForDayAndHour(day, h);
+        html += '<div class="pv-time-cell ' + (isWeekend ? 'pv-weekend-cell' : '') + (inMonth ? '' : ' pv-out-month-cell') + '">';
+        evts.forEach(ev => {
+          const col = flColorMap[ev.fl] || '#64748b';
+          html += '<div class="pv-event" style="background:' + col + '20;border-left:3px solid ' + col + '">';
+          html += '<span class="pv-event-fl" style="color:' + col + '">' + getFlShort(ev.fl) + '</span> ';
+          html += (ev.title || ev.name || 'Termin');
+          if (ev.time) html += ' <span class="pv-event-time">' + ev.time + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+    });
+    html += '</div>'; // time-grid
+
+    // Seasonal sidebar strip at bottom of page
+    const themeItems = [];
+    if (ernte.length) themeItems.push({ label: '🌾 ' + ernte.slice(0,5).map(e=>e.name).join(', ') + (ernte.length>5?'…':''), cls:'pv-strip-ernte' });
+    if (bastel.length) themeItems.push({ label: '✂️ ' + bastel.slice(0,4).map(e=>e.eintrag).join(', ') + (bastel.length>4?'…':''), cls:'pv-strip-bastel' });
+    if (fisch.length) {
+      const uf = [...new Map(fisch.map(f=>[f.art,f])).values()].slice(0,4);
+      themeItems.push({ label: '🐟 ' + uf.map(f=>f.art).join(', ') + (fisch.length>4?'…':''), cls:'pv-strip-fisch' });
+    }
+    if (themeItems.length) {
+      html += '<div class="pv-strips">';
+      themeItems.forEach(t => html += '<div class="pv-strip ' + t.cls + '">' + t.label + '</div>');
+      html += '</div>';
+    }
+
+    html += '</div>'; // pv-page
+  });
+
+  html += '</div>'; // printViewContent
+
+  const win = window.open('', '_blank', 'width=1100,height=800');
+  win.document.write(buildPrintHTML(html));
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 800);
+  closePrintDialog();
+}
+
+function buildPrintHTML(bodyContent) {
+  return '<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Kalender-Druckansicht</title>' +
+    '<style>' + getPrintCSS() + '</style></head><body>' + bodyContent + '</body></html>';
+}
+
+function fmtDate(d) {
+  return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+}
+function getKW(d) {
+  const thu = new Date(d);
+  thu.setDate(thu.getDate() - (thu.getDay() || 7) + 4);
+  const ny = new Date(thu.getFullYear(), 0, 1);
+  return String(Math.ceil((((thu - ny) / 86400000) + 1) / 7)).padStart(2,'0');
+}
+
+function getPrintCSS() {
+  return [
+    '* { box-sizing: border-box; margin: 0; padding: 0; }',
+    'body { font-family: Arial, sans-serif; font-size: 9px; background: white; color: #1a1a2e; }',
+    '.pv-page { page-break-after: always; padding: 8mm; min-height: 100vh; display: flex; flex-direction: column; }',
+    '.pv-page:last-child { page-break-after: auto; }',
+    '.pv-cover { gap: 12px; }',
+    '.pv-cover-title { font-size: 28px; font-weight: 700; color: #1e3a5f; border-bottom: 3px solid #2563eb; padding-bottom: 8px; margin-bottom: 4px; }',
+    '.pv-cover-sub { font-size: 13px; color: #64748b; margin-bottom: 16px; }',
+    '.pv-themes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; flex: 1; }',
+    '.pv-theme-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }',
+    '.pv-theme-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; border-bottom: 2px solid; padding-bottom: 4px; }',
+    '.pv-ernte .pv-theme-title { color: #16a34a; border-color: #16a34a; }',
+    '.pv-bastel .pv-theme-title { color: #9333ea; border-color: #9333ea; }',
+    '.pv-fisch .pv-theme-title { color: #0ea5e9; border-color: #0ea5e9; }',
+    '.pv-theme-box ul { list-style: none; padding: 0; }',
+    '.pv-theme-box li { padding: 2px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }',
+    '.pv-hint { color: #94a3b8; font-size: 9px; }',
+    '.pv-more { color: #94a3b8; font-style: italic; }',
+    '.pv-week { gap: 6px; }',
+    '.pv-week-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1e3a5f; padding-bottom: 4px; margin-bottom: 4px; }',
+    '.pv-week-title { font-size: 14px; font-weight: 700; color: #1e3a5f; }',
+    '.pv-week-range { font-size: 10px; color: #64748b; }',
+    '.pv-time-grid { display: grid; grid-template-columns: 32px repeat(7, 1fr); flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; }',
+    '.pv-time-header { background: #f8fafc; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }',
+    '.pv-day-header { background: #f1f5f9; border-right: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; padding: 3px 2px; text-align: center; display: flex; flex-direction: column; gap: 1px; }',
+    '.pv-day-header:last-child { border-right: none; }',
+    '.pv-day-name { font-weight: 700; font-size: 9px; color: #1e3a5f; }',
+    '.pv-day-num { font-size: 8px; color: #64748b; }',
+    '.pv-out-month .pv-day-name, .pv-out-month .pv-day-num { color: #cbd5e1; }',
+    '.pv-weekend .pv-day-name, .pv-weekend .pv-day-num { color: #7c3aed; }',
+    '.pv-time-label { background: #f8fafc; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; padding: 1px 2px; font-size: 7.5px; color: #94a3b8; text-align: right; display: flex; align-items: flex-start; justify-content: flex-end; min-height: 18px; }',
+    '.pv-time-cell { border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; padding: 1px; min-height: 18px; }',
+    '.pv-time-cell:last-child { border-right: none; }',
+    '.pv-weekend-cell { background: #faf5ff; }',
+    '.pv-out-month-cell { background: #fafafa; }',
+    '.pv-event { font-size: 7.5px; border-radius: 2px; padding: 1px 3px; margin-bottom: 1px; line-height: 1.3; }',
+    '.pv-event-fl { font-weight: 700; font-size: 6.5px; }',
+    '.pv-event-time { color: #94a3b8; }',
+    '.pv-strips { display: flex; gap: 4px; margin-top: 4px; }',
+    '.pv-strip { flex: 1; padding: 3px 6px; border-radius: 4px; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+    '.pv-strip-ernte { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }',
+    '.pv-strip-bastel { background: #faf5ff; border: 1px solid #e9d5ff; color: #6b21a8; }',
+    '.pv-strip-fisch { background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; }',
+    '@media print { @page { margin: 8mm; size: A4 landscape; } .pv-page { min-height: auto; height: 190mm; padding: 0; } .pv-time-label { min-height: 14px; } .pv-time-cell { min-height: 14px; } }'
+  ].join('\n');
+}
+
 </script>
 </body>
 </html>
