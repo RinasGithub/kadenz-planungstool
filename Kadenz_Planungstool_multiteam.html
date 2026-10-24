@@ -170,7 +170,7 @@
   .bl-dropdown-wrap{position:relative;display:inline-block;}
   .bl-dropdown-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);color:var(--text-muted);cursor:pointer;white-space:nowrap;}
   .bl-dropdown-btn.active{border-color:var(--alle);color:var(--alle);background:var(--alle-light);}
-  .bl-dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;min-width:320px;}
+  .bl-dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;left:auto;z-index:200;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;min-width:380px;max-height:80vh;overflow-y:auto;}
   .bl-dropdown-panel.open{display:block;}
   .bl-dropdown-actions{display:flex;gap:6px;margin-bottom:8px;}
   .bl-dropdown-actions button{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:600;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;}
@@ -2112,8 +2112,7 @@ function nmfRhythmChanged() {
   const wdWrap = document.getElementById('nmf-weekday-wrap');
   const extraWrap = document.getElementById('nmf-extra-wrap');
   const seriesWrap = document.getElementById('nmf-series-wrap');
-  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
-  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
 
   // Serienzeile: bei einmalig ausblenden (hat eigene Von/Bis im extraWrap)
   if (seriesWrap) seriesWrap.style.display = rhythm === 'einmalig' ? 'none' : '';
@@ -3825,9 +3824,7 @@ function openSidebar(m,date,conflict){
   const effDurSb=getEffectiveDuration(m);
   const end=endTime(m.time,effDurSb);
   const durCalc=`= ${fmtDur(effDurSb)} · Ende: ${end}`;
-  const _allDayOpts = showWeekends
-    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
-    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  const _allDayOpts = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
   const dayOpts=_allDayOpts.map(({label,val})=>`<button class="dpill${m.weekDay===val?' sel':''}" onclick="setWeekDay('${m.id}',${val},this)">${label}</button>`).join('')+`<button class="dpill${m.weekDay===null?' sel':''}" onclick="setWeekDay('${m.id}',null,this)">–</button>`;
   const isCustom=m.framework==='Eigener Ansatz';
   const conflictExtra = getAdditionalConflictInfo(date);
@@ -4111,8 +4108,7 @@ function renderRhythmExtra(id) {
   const el = document.getElementById('rhythm-extra-' + id);
   if (!m || !el) return;
   const rhythm = m.rhythm;
-  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
-  if (showWeekends) { dayLabels.push({label:'Sa',val:6},{label:'So',val:7}); }
+  const dayLabels = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
 
   if (rhythm === 'einmalig') {
     el.innerHTML = `
@@ -4326,9 +4322,7 @@ function openDraftSidebar(m, date) {
 
   // Build day picker
   const dayPicker = document.getElementById('draft-day-picker');
-  const allDays = showWeekends
-    ? [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}]
-    : [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5}];
+  const allDays = [{label:'Mo',val:1},{label:'Di',val:2},{label:'Mi',val:3},{label:'Do',val:4},{label:'Fr',val:5},{label:'Sa',val:6},{label:'So',val:7}];
   allDays.forEach(({label,val})=>{
     const btn=document.createElement('button');
     btn.className='dpill'+(m.weekDay===val?' sel':'');
