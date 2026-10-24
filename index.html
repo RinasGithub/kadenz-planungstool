@@ -1997,6 +1997,8 @@ function getProfileData() {
     teams: TEAMS,
     // Spezialtermine
     specialEvents: SPECIAL_EVENTS,
+    // Custom Templates (sonst nur in localStorage = gerätespezifisch)
+    customTemplates,
   };
 }
 
@@ -2058,13 +2060,17 @@ function loadProfileData(data) {
     MEETINGS.length = 0;
     data.meetings.forEach(m => MEETINGS.push(m));
   }
-  // Context
-  if (data.activeBL) activeBL = data.activeBL;
+  // Context — activeBL kann [] (alle), null (keine) oder string[] (spezifisch) sein
+  if (data.activeBL !== undefined) activeBL = data.activeBL;
   if (data.milestones) milestones = data.milestones;
   if (data.betriebsurlaub) betriebsurlaub = data.betriebsurlaub;
   if (data.activeMeetingIds !== undefined) activeMeetingIds = data.activeMeetingIds;
   if (data.teams) { TEAMS.length = 0; data.teams.forEach(t => TEAMS.push(t)); }
   if (data.specialEvents) { SPECIAL_EVENTS.length = 0; data.specialEvents.forEach(e => SPECIAL_EVENTS.push(e)); }
+  if (data.customTemplates && Array.isArray(data.customTemplates)) {
+    customTemplates = data.customTemplates;
+    saveCustomTemplates();
+  }
 }
 
 function renderProfileBar() {
@@ -3372,6 +3378,18 @@ function renderOverview(){
 // ══════════════════════════════════════════════════════════════════════════
 // KONTEXT TAB
 // ══════════════════════════════════════════════════════════════════════════
+function updateBLUI(){
+  const blGrid=document.getElementById('blGrid');
+  if(blGrid){
+    blGrid.querySelectorAll('.bl-pill').forEach(pill=>{
+      const bl=BL_ALL.find(b=>BL_NAMES[b]===pill.textContent);
+      if(bl) pill.className='bl-pill'+(Array.isArray(activeBL)&&activeBL.includes(bl)?' sel':'');
+    });
+  }
+  const blHint=document.getElementById('blHint');
+  if(blHint) blHint.textContent=Array.isArray(activeBL)&&activeBL.length?`Aktiv: ${activeBL.join(', ')} — regionale Feiertage dieser Länder werden hervorgehoben.`:'Kein Bundesland gewählt — alle bundesweiten Feiertage werden angezeigt.';
+}
+
 function renderKontext(){
   const scroll=document.getElementById('kxScroll');
   scroll.innerHTML='';
@@ -3395,17 +3413,17 @@ function renderKontext(){
   const blGrid=blSec.querySelector('#blGrid');
   BL_ALL.forEach(bl=>{
     const pill=document.createElement('button');
-    pill.className='bl-pill'+(activeBL.includes(bl)?' sel':'');
+    pill.className='bl-pill'+(Array.isArray(activeBL)&&activeBL.includes(bl)?' sel':'');
     pill.textContent=BL_NAMES[bl];
     pill.onclick=()=>{
+      if(!Array.isArray(activeBL))activeBL=[];
       if(activeBL.includes(bl))activeBL=activeBL.filter(b=>b!==bl);
-      else activeBL.push(bl);
-      renderKontext();renderMonth();
+      else activeBL=[...activeBL,bl];
+      updateBLUI();renderMonth();
     };
     blGrid.appendChild(pill);
   });
-  const blHint=blSec.querySelector('#blHint');
-  blHint.textContent=activeBL.length?`Aktiv: ${activeBL.join(', ')} — regionale Feiertage dieser Länder werden hervorgehoben.`:'Kein Bundesland gewählt — alle bundesweiten Feiertage werden angezeigt.';
+  updateBLUI();
 
   // Show upcoming ferien for selected BL
   const now=new Date();
@@ -3855,7 +3873,7 @@ function openSidebar(m,date,conflict){
       </div>
       <div style="display:flex;gap:5px;margin-bottom:4px">
         <button class="dup-btn" onclick="duplicateMeeting('${m.id}')" title="Duplizieren">⧉ Duplizieren</button>
-        <button class="dup-btn" style="color:var(--red)" onclick="deleteMeetingFromSidebar('${m.id}')" title="Löschen">🗑 Löschen</button>
+        <button id="del-btn-${m.id}" class="dup-btn" style="color:var(--red)" onclick="deleteMeetingFromSidebar('${m.id}')" title="Löschen">🗑 Löschen</button>
       </div>
     </div>
     <div class="sbb">
@@ -4212,8 +4230,8 @@ function openDraftSidebar(m, date) {
   sc.style.cssText='display:flex;flex:1;flex-direction:column;overflow:hidden;';
   const ds=date.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 
-  const rhythmOpts = ['einmalig','daily','weekly','sprint-start','sprint-end','every4weeks','every6weeks','monthly','quarterly'];
-  const rhythmNames = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich',quarterly:'Quartalsweise'};
+  const rhythmOpts = ['einmalig','daily','weekly','everyNweeks','sprint-start','sprint-end','every4weeks','every6weeks','monthly','monthly-nth','quarterly'];
+  const rhythmNames = {einmalig:'Einmalig',daily:'Täglich',weekly:'Wöchentlich',everyNweeks:'Alle X Wochen','sprint-start':'Sprint-Start','sprint-end':'Sprint-Ende',every4weeks:'Alle 4 Wochen',every6weeks:'Alle 6 Wochen',monthly:'Monatlich','monthly-nth':'Monatlich (n. Woche)',quarterly:'Quartalsweise'};
 
   sc.innerHTML = `
     <div class="sbh" style="background:var(--fl1-light)">
@@ -4404,18 +4422,12 @@ function cancelDraft() {
 
 
 
-function applyFL(id, fl, btn) {
+function applyFL(id, fl) {
   const m = MEETINGS.find(x => x.id === id);
   if (!m) return;
   m.fl = fl;
   m.flLabel = getFlShort(fl);
-  // Update all FL pills in sidebar
-  btn.closest('div').querySelectorAll('button').forEach(b => {
-    const bfl = b.textContent.trim().toLowerCase().replace('lernen','lernen');
-    // re-render sidebar to reflect change
-  });
   render();
-  // Reopen sidebar with updated data
   const conflict = {level:'green', msg:'🟢 Kein Konflikt'};
   openSidebar(m, new Date(), conflict);
 }
@@ -4429,7 +4441,7 @@ function deleteMeetingFromSidebar(id) {
   const m = MEETINGS.find(x => x.id === id);
   if (!m) return;
   // Show inline confirm in sidebar instead of browser dialog
-  const btn = document.querySelector('[onclick*="deleteMeetingFromSidebar"]');
+  const btn = document.getElementById('del-btn-' + id);
   const container = btn ? btn.parentElement : null;
   if (container && !document.getElementById('del-confirm-' + id)) {
     const conf = document.createElement('div');
