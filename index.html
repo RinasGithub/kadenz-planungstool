@@ -1382,6 +1382,8 @@ function confirmModeSwitch() {
       if (!confirm('Wechsel zu Familien-Modus. Sollen die aktuellen Meetings ersetzt werden?')) return;
     }
     switchAppMode('familie');
+    // Familie-Modus: Wochenenden automatisch einblenden (Sa/So-Termine wie Familienrat)
+    if (!showWeekends) toggleWeekends();
     const tpl = TEMPLATES_FAMILIE.find(t => t.id === _pendingTplId);
     if (tpl) {
       MEETINGS.length = 0;

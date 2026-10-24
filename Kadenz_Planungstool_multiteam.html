@@ -1277,7 +1277,7 @@ let betriebsurlaub=[]; // {id,from,to,label}
 // ══════════════════════════════════════════════════════════════════════════
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const DAYS_SHORT=['Mo','Di','Mi','Do','Fr','Sa','So'];
-const DAYS_LABEL={1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr'};
+const DAYS_LABEL={1:'Mo',2:'Di',3:'Mi',4:'Do',5:'Fr',6:'Sa',7:'So'};
 const FL_ORDER=['fl1','fl2','fl3','lernen','alle'];
 const FL_NAMES={fl1:'FL1 — Team-Ebene',fl2:'FL2 — Koordination',fl3:'FL3 — Management',lernen:'Lernen & Kultur',alle:'Alle Ebenen'};
 
@@ -1318,7 +1318,7 @@ const TEMPLATES_FAMILIE = [
     name: 'Familie Basis',
     desc: 'Familienrat, Elternplanung, persönliche Termine',
     meetings: [
-      {id:'familienrat', name:'Familienrat', framework:'Familie', fl:'fl3', rhythm:'weekly', weekDay:0, time:'18:00', dur:60, color:'#4A90D9'},
+      {id:'familienrat', name:'Familienrat', framework:'Familie', fl:'fl3', rhythm:'weekly', weekDay:7, time:'18:00', dur:60, color:'#4A90D9'},
       {id:'elternplanung', name:'Elternplanung', framework:'Familie', fl:'fl2', rhythm:'monthly-nth', weekDay:6, monthWeek:2, time:'20:00', dur:90, color:'#7B68EE'},
       {id:'haushaltsrunde', name:'Haushaltsrunde', framework:'Familie', fl:'fl2', rhythm:'weekly', weekDay:5, time:'10:00', dur:30, color:'#F5A623'},
       {id:'hobby-person1', name:'Hobby / Training', framework:'Familie', fl:'fl1', rhythm:'weekly', weekDay:2, time:'18:00', dur:60, color:'#7ED321'},
@@ -1382,6 +1382,8 @@ function confirmModeSwitch() {
       if (!confirm('Wechsel zu Familien-Modus. Sollen die aktuellen Meetings ersetzt werden?')) return;
     }
     switchAppMode('familie');
+    // Familie-Modus: Wochenenden automatisch einblenden (Sa/So-Termine wie Familienrat)
+    if (!showWeekends) toggleWeekends();
     const tpl = TEMPLATES_FAMILIE.find(t => t.id === _pendingTplId);
     if (tpl) {
       MEETINGS.length = 0;
